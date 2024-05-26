@@ -1,0 +1,50 @@
+{
+  "builder_name": "json",
+  "citation": "",
+  "config_name": "default",
+  "dataset_name": "code_alpaca-20k",
+  "dataset_size": 6132650,
+  "description": "",
+  "download_checksums": {
+    "hf://datasets/sahil2801/CodeAlpaca-20k@152bb5e9a29651266b018106053980070a0521a1/code_alpaca_20k.json": {
+      "num_bytes": 8057896,
+      "checksum": null
+    }
+  },
+  "download_size": 8057896,
+  "features": {
+    "output": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "instruction": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "input": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "language": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 14190546,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 6132650,
+      "num_examples": 20022,
+      "dataset_name": "code_alpaca-20k"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}
