@@ -1,0 +1,235 @@
+from .fsapi_core import *
+import time
+from xml.dom import minidom
+        
+
+class FSAPI_Node(object):
+    NAN = -65536
+
+    def __init__(self, fsapi_type: str, fsapi_property_alias: str = None, fsapi_set_method_alias: str = None):
+        self._fsapi_type = fsapi_type
+        self._fsapi_property_alias = fsapi_property_alias
+        self._fsapi_set_method_alias = fsapi_set_method_alias
+
+    def __call__(self, cls):
+        class FSAPI_Node_Wrapper(cls):
+            fsapi_type = self._fsapi_type
+            fsapi_property_alias = self._fsapi_property_alias
+            if fsapi_property_alias is None:
+                fsapi_property_alias = cls.key.lower().replace('netremote.', '').replace('.', '_')
+            FSAPI.register_class(cls, fsapi_property_alias, self._fsapi_set_method_alias, fsapi_type)
+
+            def __init__(self):
+                self._last_value = None
+                self._last_value_time = 0
+                self._key = cls.key.lower()
+                self._max_age = cls.max_age
+
+                if hasattr(cls, 'get_url'):
+                    self._get_url = cls.get_url.format(self.key)
+                    self.can_get = True
+                else:
+                    self.can_get = False
+                    self.get = self.no_get
+                    
+                if hasattr(cls, 'set_url'):
+                    self._set_url = cls.set_url.format(self.key)
+                    self.can_set = True
+                else:
+                    self.can_set = False
+                    self.set = self.no_set
+
+                if hasattr(cls, 'del_url'):
+                    self._del_url = cls.del_url.format(self.key)
+                else:
+                    self.dele = self.no_dele
+
+                if self.fsapi_type == 'u8':
+                    self._parse_value = self._get_fsapi_value_int
+                    self._validate = lambda v: None
+                    self._get_core = lambda: self._call(self._get_url)
+                elif self.fsapi_type == 'void1':
+                    self._parse_value = self._get_fsapi_value_int
+                    self._validate = lambda v: None
+                    self._convert_to = lambda v: 1
+                    self._get_core = lambda: self._call(self._get_url)
+                elif self.fsapi_type == 's8':
+                    self._parse_value = self._get_fsapi_value_int
+                    self._validate = lambda v: None
+                    self._get_core = lambda: self._call(self._get_url)
+                elif self.fsapi_type == 'u32':
+                    self._parse_value = self._get_fsapi_value_int
+                    self._validate = lambda v: None
+                    self._get_core = lambda: self._call(self._get_url)
+                elif self.fsapi_type == 'bool':
+                    self._parse_value = self._get_fsapi_value_int
+                    self._convert_from = lambda v: bool(v)
+                    self._convert_to = lambda v: int(v)
+                    self._validate = self._validate_boolean
+                    self._get_core = lambda: self._call(self._get_url)
+                    self.fsapi_type = 'u8'
+                elif self.fsapi_type == 'list':
+                    self._parse_value = self._get_fsapi_value_list
+                    self._validate = lambda v: None
+                    self._get_core = lambda: self._call(self._get_url, extra=dict(maxItems=40))
+                elif self.fsapi_type == 'str':
+                    self._parse_value = self._get_fsapi_value_str
+                    self._validate = lambda v: None
+                    self._get_core = lambda: self._call(self._get_url)
+                elif self.fsapi_type == 'raw':
+                    self._validate = lambda v: None
+                    self._get_core = lambda: self._call(self._get_url)
+                else:
+                    pass  # TODO: Log proper error
+
+                if not hasattr(self, '_convert_from'):
+                    self._convert_from = self._default_convert
+
+                if not hasattr(self, '_convert_to'):
+                    self._convert_to = self._default_convert
+
+                if not hasattr(self, '_call'):
+                    self._call = self._default_call
+
+            def _default_convert(self, value):
+                return value
+
+            def _default_call(self, path, extra=None):
+                webfsapi_url = self._fsapi._get_webfsapi()
+                if not webfsapi_url:
+                    raise Exception('No server found')
+
+                if type(extra) is not dict:
+                    extra = dict()
+
+                params = dict(
+                    pin=self._fsapi._pin,
+                    sid=self._fsapi.session_id
+                )
+
+                params.update(**extra)
+                with self._fsapi._access_locker as l:
+                    url = f"{webfsapi_url}/{path}"
+                    res = l.get_request(url, params=params)
+                    return res
+
+            def _validate_boolean(self, value):
+                if type(value) is not bool:
+                    raise RuntimeError('Value must be boolean')
+
+            def _inject_fsapi(self, fsapi_obj):
+                self._fsapi = fsapi_obj
+
+            def _get_fsapi_value_str(self, doc: str):
+                return self._get_fsapi_value_raw(doc, 'c8_array')
+
+            def _get_fsapi_value_int(self, doc: str):
+                return int(self._get_fsapi_value_raw(doc, self.fsapi_type) or FSAPI_Node.NAN)
+
+            def _get_fsapi_value_raw(self, doc: str, type_tag: str):
+                try:
+                    xml = minidom.parseString(doc).firstChild
+                    if xml.getElementsByTagName('status')[0].firstChild.data == 'FS_NODE_BLOCKED':
+                        raise FSAPI_Node_Blocked_Exception()
+                    if not xml.getElementsByTagName('status')[0].firstChild.data == 'FS_OK':
+                        return None
+                    val_tag = xml.getElementsByTagName('value')[0]
+                    child = val_tag.getElementsByTagName(type_tag)[0].firstChild
+                    if child is None:
+                        return None
+                    return child.data
+                except Exception as e:
+                    self._fsapi.write_log("Getting value_raw {}: received <{}> error: {}".format(self.key, doc, e))
+                    raise
+
+            def _get_xml_single_content(self, doc: str, tag_name: str):
+                try:
+                    xml = minidom.parseString(doc).firstChild
+                    return xml.getElementsByTagName(tag_name)[0].firstChild.data
+                except Exception as e:
+                    self._fsapi.write_log("Getting single_content {}: received <{}> error: {}".format(self.key, doc, e))
+                    raise
+
+            def _get_fsapi_value_list(self, doc: str):
+                self._fsapi.write_log(f"Getting List, result: {doc}")
+                xml = minidom.parseString(doc).firstChild
+                if not xml.getElementsByTagName('status')[0].firstChild.data == 'FS_OK':
+                    return None
+                ret_store = []
+                res = xml.getElementsByTagName('item')
+                for item in res:
+                    index = int(item.getAttribute('key') or '-1')
+                    attrs = {}
+                    attrs['key'] = index
+                    for field in item.getElementsByTagName('field'):
+                        fn = field.getAttribute('name')
+                        fv = ''
+                        for tag_type in ['c8_array', 'u8', 'u32', 's16']:
+                            for val in field.getElementsByTagName(tag_type):
+                                if val.firstChild is None:
+                                    fv = None
+                                else:
+                                    fv = val.firstChild.data
+
+                        attrs[fn] = fv
+                    ret_store.append(attrs)
+                
+                self._fsapi.write_log(f"Parsed List, result: {ret_store}")
+                return ret_store
+
+            def _update_cache(self, value):
+                self._last_value = value
+                self._last_value_time = time.time()
+
+            def no_get(self):
+                raise RuntimeError(self._key + ' is not readable')
+
+            def get(self):
+                ret_val = None
+                if time.time() - self._max_age > self._last_value_time:
+                    response = self._get_core()
+                    ret_val = self._parse_value(response)
+                    self._last_value = ret_val
+                    self._last_value_time = time.time()
+                else:
+                    ret_val = self._last_value
+                return self._convert_from(ret_val)
+
+            def no_set(self, value):
+                raise RuntimeError(self._key + ' is not writable')
+
+            def set(self, value):
+                self._validate(value)
+                converted_value = self._convert_to(value)
+
+                response = self._call(self._set_url, dict(value=converted_value))
+                if isinstance(response, int):
+                    self._fsapi.write_log(f"Trying to set, http-code: {response}")
+                    raise FSAPI_Session_Invalid_Exception()
+
+                if self._get_xml_single_content(response, 'status') == 'FS_OK':
+                    self._last_value = value
+                    self._last_value_time = time.time()
+                    return True
+                elif self._get_xml_single_content(response, 'status') == 'FS_NODE_BLOCKED':
+                    raise FSAPI_Node_Blocked_Exception()
+                else:
+                    rslt = self._get_xml_single_content(response, 'status')
+                    if rslt is None:
+                        raise Exception("Setting failed - Response: {}".format(response))
+                    else:
+                        raise Exception("Setting failed - Status: {}".format(rslt))
+
+            def dele(self):
+                doc = self._call(self._del_url)
+                self._last_value_time = 0
+                self._last_value = None
+                if self._get_xml_single_content(doc, 'status') == 'FS_OK':
+                    return True
+                else:
+                    raise Exception("Deleting failed {}".format(self._get_xml_single_content(doc, 'status')))
+
+            def no_dele(self):
+                raise RuntimeError(self._key + ' is not deletable')
+
+        return FSAPI_Node_Wrapper

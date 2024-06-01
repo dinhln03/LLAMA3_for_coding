@@ -1,0 +1,38 @@
+import argparse
+import datasets
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', type=str, required=True, help='Path to the directory with input dataset')
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    dataset = datasets.load_from_disk(args.input).shuffle()
+
+    for part in dataset:
+        print()
+        print('part', part)
+        xs = []
+        ys = []
+        for i, x in enumerate(dataset[part]):
+            print(x['tse'], len(x['input_ids']))
+            xs.append(len(x['input_ids']))
+            ys.append(x['tse'])
+            if i >= 10000:
+                break
+        plt.clf()
+        plt.cla()
+        plt.title(f'{part} CDF')
+        # plt.xlabel('len')
+        # plt.ylabel('tse / len')
+        # plt.scatter(xs, ys)
+        # plt.hist(ys, bins=5000)
+        ys.sort()
+        ys = np.array(ys)
+        plt.plot(ys, np.arange(len(ys)))
+        plt.savefig(f'{part}.png')

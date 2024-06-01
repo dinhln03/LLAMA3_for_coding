@@ -1,0 +1,112 @@
+# -*- coding: utf-8 -*-
+
+# TheQube profile dialog
+# A part of TheQube accessible social networking client
+# Copyright © Andre Polykanine A.K.A. Menelion Elensúlë, 2014 — 2015
+
+from logger import logger
+logging = logger.getChild("sessions.twitter.gui.profile")
+
+import config
+import sessions
+import wx
+
+from core.gui import SquareDialog
+
+import calendar
+import time
+import rfc822
+
+class TwitterProfileDialog (SquareDialog):
+ def __init__ (self, user, *args, **kwargs):
+  super(TwitterProfileDialog, self).__init__(title=_("Profile for %s" % user['screen_name']), *args, **kwargs)
+  self.user = user
+  full_url = unicode(self.user['entities']['url']['urls'][0]['expanded_url']) if 'url' in self.user['entities'] else ''
+  self.screen_name = self.labeled_control(_("Screen name:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['screen_name']))
+  self.screen_name.Bind(wx.EVT_CHAR, self.charPressed)
+  self.name = self.labeled_control(_("Real name:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['name']))
+  self.name.Bind(wx.EVT_CHAR, self.charPressed)
+  if unicode(user['location']) != '' and unicode(user['location']).lower() != 'none':
+   self.location = self.labeled_control(_("Location:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['location']))
+   self.location.Bind(wx.EVT_CHAR, self.charPressed)
+  self.account_id = self.labeled_control(_("Account ID:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['id']))
+  self.account_id.Bind(wx.EVT_CHAR, self.charPressed)
+  if full_url != '' and full_url.lower() != 'none' and full_url.lower() != 'http://none':
+   self.url = self.labeled_control(_("URL:"), wx.TextCtrl, style=wx.TE_RICH2 | wx.TE_MULTILINE | wx.TE_AUTO_URL | wx.TE_READONLY | wx.WANTS_CHARS, value=full_url)
+   self.url.Bind(wx.EVT_CHAR, self.charPressed)
+  if unicode(user['description']) != '' and unicode(user['description']).lower() != 'none':
+   size = self.Size
+   size[0] = size[0] / 2
+   size[1] = -1
+   self.description = self.labeled_control(_("Bio:"), wx.TextCtrl, style=wx.TE_RICH2 | wx.TE_MULTILINE | wx.TE_READONLY, size=size, value=unicode(user['description']))
+   self.description.Bind(wx.EVT_CHAR, self.charPressed)
+  self.protected = self.labeled_control(_("Tweets are protected:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS)
+  if user['protected']:
+   self.protected.SetValue(_("Yes"))
+  else:
+   self.protected.SetValue(_("No"))
+  self.protected.Bind(wx.EVT_CHAR, self.charPressed)
+  self.followers_count = self.labeled_control(_("Number of followers:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['followers_count']))
+  self.followers_count.Bind(wx.EVT_CHAR, self.charPressed)
+  self.friends_count = self.labeled_control(_("Number of friends:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['friends_count']))
+  self.friends_count.Bind(wx.EVT_CHAR, self.charPressed)
+  self.listed_count = self.labeled_control(_("Number of having this user in their lists:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['listed_count']))
+  self.listed_count.Bind(wx.EVT_CHAR, self.charPressed)
+  self.statuses_count = self.labeled_control(_("Number of tweets:"), wx.TextCtrl, parent=self.pane,  style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS, value=unicode(user['statuses_count']))
+  self.statuses_count.Bind(wx.EVT_CHAR, self.charPressed)
+  self.average_tweets = self.labeled_control(_("Average tweets per day since joining Twitter:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS)
+  self.average_tweets.SetValue(unicode(int(round(int(unicode(user['statuses_count'])) * 86400 / (time.time() - time.mktime(rfc822.parsedate(user['created_at'])))))))
+  self.average_tweets.Bind(wx.EVT_CHAR, self.charPressed)
+  self.status_created_at = self.labeled_control(_("Date of last tweet:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS)
+  if 'status' in user:
+   self.status_created_at.SetValue(time.strftime('%c', time.localtime(calendar.timegm(rfc822.parsedate(user['status']['created_at'])))))
+  else:
+   self.status_created_at.SetValue(_("Not available"))
+  self.status_created_at.Bind(wx.EVT_CHAR, self.charPressed)
+  self.created_at = self.labeled_control(_("Date joined Twitter:"), wx.TextCtrl, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.WANTS_CHARS)
+  self.created_at.SetValue(time.strftime('%c', time.localtime(calendar.timegm(rfc822.parsedate(user['created_at'])))))
+  self.created_at.Bind(wx.EVT_CHAR, self.charPressed)
+  self.setup_follow_button(user)
+  self.btn_close = wx.Button(parent=self.pane, id=wx.ID_CLOSE)
+  self.btn_close.SetSizerProps(expand = True)
+  self.SetEscapeId(wx.ID_CLOSE)
+  self.finish_setup(create_buttons=False)
+  
+ def charPressed(self, evt):
+  object = evt.GetEventObject()
+  key = evt.GetKeyCode()
+  modifiers = evt.GetModifiers()
+  if config.main['UI']['stdKeyHandling'] and key in (wx.WXK_END, wx.WXK_HOME):
+   evt.Skip()
+  elif key == wx.WXK_HOME and not modifiers:
+   object.SetInsertionPoint(0)
+  elif key == wx.WXK_END and not modifiers:
+   object.SetInsertionPointEnd()
+  elif key == wx.WXK_HOME and modifiers == wx.MOD_SHIFT:
+   object.SetSelection(object.GetInsertionPoint(), 0)
+  elif key == wx.WXK_END and modifiers == wx.MOD_SHIFT:
+   object.SetSelection(object.GetInsertionPoint(), len(object.GetValue()))
+  elif key == 1 and modifiers == wx.MOD_CONTROL:
+   object.SetInsertionPoint(0)
+   object.SetSelection(0, len(object.GetValue()))
+  else:
+   evt.Skip()
+
+ def setup_follow_button (self, user):
+  if sessions.current_session.is_current_user(user['screen_name']):
+   return
+  if not user['following']:
+   self.follow_button = wx.Button(parent=self.pane, label=_("Follow %s") % user['name'])
+   self.follow_button.Bind(wx.EVT_BUTTON, self.follow)
+  else:
+   self.follow_button = wx.Button(parent=self.pane, label=_("Unfollow %s") % user['name'])
+   self.follow_button.Bind(wx.EVT_BUTTON, self.unfollow)
+  self.follow_button.SetSizerProps(expand=True)
+
+ def follow (self, evt):
+  evt.Skip()
+  sessions.current_session.follow(screen_name=self.user['screen_name'])
+
+ def unfollow (self, evt):
+  evt.Skip()
+  sessions.current_session.do_unfollow(screen_name=self.user['screen_name'], action=0)

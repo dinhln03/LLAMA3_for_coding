@@ -1,0 +1,214 @@
+## utility functions
+## including: labelling, annotation, continuous borders
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+## create labels
+def generate_class_label(data):
+    """
+    generates class label on a copy of data using the columns
+    State, From_X, From_Y, To_X, To_Y
+    """
+    r_data = data.copy()
+    
+    r_data['target'] = \
+    r_data.State.astype(np.str) + "_"+ \
+    r_data.From_X.astype(np.str)+ "," + r_data.From_Y.astype(np.str)+ "_" + \
+    r_data.To_X.astype(np.str)+ "," + r_data.To_Y.astype(np.str)
+    
+    return r_data
+    
+def generate_class_label_and_drop(data):
+    """
+    generates class label on a copy of data using the columns
+    State, From_X, From_Y, To_X, To_Y
+    """
+    r_data = data.copy()
+    
+    r_data['target'] = \
+    r_data.State.astype(np.str) + "_"+ \
+    r_data.From_X.astype(np.str)+ "," + r_data.From_Y.astype(np.str)+ "_" + \
+    r_data.To_X.astype(np.str)+ "," + r_data.To_Y.astype(np.str)
+    
+    r_data = r_data.drop('From_X', 1)
+    r_data = r_data.drop('From_Y', 1)
+    r_data = r_data.drop('To_Y', 1)
+    r_data = r_data.drop('To_X', 1)
+    r_data = r_data.drop('State', 1)
+    r_data = r_data.drop('ID', 1)
+    r_data = r_data.drop('Rng_ID', 1)
+    
+    r_data = r_data[ ~r_data['target'].str.contains("Pause") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Enter") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Leave") ]
+    
+    return r_data.reset_index()
+
+
+def generate_class_label_presence(data, state_variable ="target"):
+    """
+    generates class label only for presence on a copy of data using only the columns
+    Removes: Pause and merges 'Step' and 'Stand' to same class
+    """
+    r_data = data.copy()
+
+    r_data = r_data[ ~r_data['target'].str.contains("Pause") ]
+    r_data.loc[ r_data['target'].str.contains("Step"), 'target' ] = "Present"
+    r_data.loc[ r_data['target'].str.contains("Stand"), 'target' ] = "Present"
+    r_data.loc[ r_data['target'].str.contains("Walk"), 'target' ] = "Present"
+    
+    # remove enter and leave
+    r_data = r_data[ ~r_data['target'].str.contains("Enter") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Leave") ]
+    
+    r_data.loc[ ~r_data['target'].str.contains("Present"), 'target' ] = "Not Present"
+    
+    return r_data.reset_index()
+
+
+def generate_class_label_dyn_vs_empty(data, state_variable ="target"):
+    """
+    generates class label only for presence on a copy of data using only the columns
+    Removes: Pause and merges 'Step' and 'Stand' to same class
+    """
+    r_data = data.copy()
+
+    r_data = r_data[ ~r_data['target'].str.contains("Pause") ]
+    r_data.loc[ r_data['target'].str.contains("Walk"), 'target' ] = "Present"
+    r_data.loc[ r_data['target'].str.contains("Step"), 'target' ] = "Present"
+    r_data.loc[ r_data['target'].str.contains("Empty"), 'target' ] = "Not Present"
+    # remove enter and leave
+    r_data = r_data[ ~r_data['target'].str.contains("Enter") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Stand") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Leave") ]
+    
+    
+    
+    return r_data.reset_index()
+
+
+
+def generate_class_label_presence_and_dynamic(data, state_variable ="State"):
+    """
+    generates class label only for presence on a copy of data using only the columns
+    Removes: Pause and merges 'Step' and 'Stand' to same class
+    """
+    r_data = data.copy()
+
+    r_data['target'] = r_data[state_variable].astype(np.str)
+    
+    r_data = r_data[ ~r_data['target'].str.contains("Pause") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Enter") ]
+    r_data = r_data[ ~r_data['target'].str.contains("Leave") ]
+    
+    r_data.loc[ r_data['target'].str.contains("Step"), 'target' ] = "Step"
+    r_data.loc[ r_data['target'].str.contains("Walki"), 'target' ] = "Walk"
+    r_data.loc[ r_data['target'].str.contains("Stand"), 'target' ] = "Stand"
+    r_data.loc[ r_data['target'].str.contains("Empty"), 'target' ] = "Empty"
+    
+    
+    return r_data
+
+
+
+def get_contigous_borders(indices):
+    """
+    helper function to derive contiguous borders from a list of indices
+    
+    Parameters
+    ----------
+    indicies : all indices at which a certain thing occurs
+    
+    
+    Returns
+    -------
+    list of groups when the indices starts and ends (note: last element is the real last element of the group _not_ n+1)
+    """
+    
+    r =[ [indices[0]] ]
+    prev = r[0][0]
+
+    for ix,i in enumerate(indices):
+
+        # distance bw last occurence and current > 1
+        # then there is obviously a space
+        if (i - prev) > 1:
+            # add end
+            r[-1].append(indices[ix-1])
+            # add new start
+            r.append([ indices[ix] ])
+
+        prev = i
+
+    r[-1].append( indices[-1] )
+    
+    return r
+
+    
+
+def get_contiguous_activity_borders(data, label):
+    """
+    returns a dict with all starts ends of all labels provided in label variable
+    """
+
+    labels = data[label].unique()
+    
+    r = {}
+    
+    for l in labels:
+    
+        a = data[data[label] == l].index.values
+        
+        r[l] = get_contigous_borders(a)
+        
+    r['length'] = data.shape[0]
+    return(r)
+    
+def annotate(a):
+    """
+    draws annotation into a sns heatmap using plt annotation
+    
+    a : dictonary with activity name and borders
+    """
+    
+    min_length = 4
+    
+    for k in a.keys():
+        if k == "length":
+            continue
+            
+        borders = a[k]
+        
+        for s,e in borders:
+    
+            # need to correct for coordinates starting at 0,0
+            s_r = a['length'] - s
+            e_r = a['length'] - e
+    
+            #print(s_r, e_r)
+    
+            plt.annotate("",
+                xy=(4, s_r), xycoords='data',
+                xytext=(4, e_r), textcoords='data',
+                arrowprops=dict(shrink=0.0, headwidth=10.0, headlength=1.0, width=0.25, shrinkA=0.0, shrinkB=0.0 )        
+                #arrowprops=dict(arrowstyle="|-|",
+                #                connectionstyle="arc3"),
+            )
+        
+            # only write text if enough space available
+            if s_r - e_r < min_length:
+                continue
+
+            plt.annotate(k,
+                 xy=(7, s_r-((s_r-e_r)//2)-min_length//2), xycoords='data',
+                 xytext=(7, s_r-((s_r-e_r)//2)-min_length//2), textcoords='data',
+                 size=9
+                )
+   
+    
+def get_trx_groups(data, group_key="_ifft_0"):
+    lst = data.columns[data.columns.str.contains(group_key)]
+    groups = [ [x[:-2]] for x in lst]
+    return groups

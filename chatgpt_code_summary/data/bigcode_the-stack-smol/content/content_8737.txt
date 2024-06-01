@@ -1,0 +1,2 @@
+class CouponNotFoundException(Exception):
+    pass

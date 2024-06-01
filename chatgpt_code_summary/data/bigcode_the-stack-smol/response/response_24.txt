@@ -1,0 +1,5 @@
+This Python code snippet demonstrates the usage of a function decorator named `interpolate_doc` for generating documentation. 
+
+- The `interpolate_doc` decorator interpolates specific variables and a class attribute into the function's docstring before the function is defined.
+- A docstring format includes placeholders like `{interpolate_example.foo}`, `{bar}`, and `{Foo!K}` to insert the values of the `foo` variable, `bar` variable, and the special class attribute `__kw__` from class `Foo` into the function `func`'s docstring.
+- There is a demonstration of catching an error when a docstring is improperly formatted within the `bad_doc` function.

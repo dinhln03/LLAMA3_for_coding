@@ -1,0 +1,227 @@
+#Python 3.X? Could be compatitible with small tweaks.
+from re import findall
+#Tatatat0 2016
+#Documentation:
+#Virtual Memory Classes:
+#  Virtual_Memory(max_memory)
+#    maxmemory: maximum address memory can be allocated to
+#    chunks: list of virtual memory chunks.
+#      format: ((chunk1, chunk1.start_address, chunk1.allocated_memory),(chunk2,...,...))
+#  Functions:
+#    allocate(address,memory)
+#      creates a new Virtual_Memory_Chunk instance, allocating memory at address.
+#      adds new chunk to chunks attribute
+#    deallocate(address)
+#      removes allocated memory at address. Must be starting address of allocated memory
+#    get_memory(address,memory)
+#      returns the memory amount of bytes at address. Must be allocated.
+#    set_memory(address,new_memory)
+#      sets the memory at address equal to new_memory
+#  Virtual_Memory_Chunk(parent,start_address,memory_input,allocated_memory,architecture_class)
+#    parent: a pointer to the main virtual memory class instance
+#    start_address: is the address of the first byte in memory_input, referenceable by opcodes.
+#      Default is 0.
+#    allocated_memory: This is the amount of memory that is accessible. The memory that is accessible is equal to start_address + allocated_memory.
+#      Default is 100 bytes.
+#    memory_input: is a series of bytes represented in hex string, if its length is less than the amount allocated, extra zeros are added. Becomes Virtual_Memory_Chunk.memory upon initialization
+#      Default is 0. 
+#    architecture_class: This is an open ended variable that can be used to bind into a family of architecture based encoding,decoding, and operation methods.
+#      Default is "None".
+#  Functions:
+#    get_memory(address,amount)
+#      gets amount of bytes of memory at the address specified by address
+#      region specified must be within the allocated memory
+#    set_memory(address,new_memory)
+#      sets the memory at address to new_memory
+#      region specified must be within the allocated memory
+#      smallest data editable is a nibble
+#    print_variables()
+#      prints the useful variables of current instance of Virtual_Memory_Chunk
+
+#Beginning of not yet implemented
+#Architecture Classes:
+#  Powerpc_Architecture()
+#    registers: The registers are r0-31,f0-31,CR,LR,PC
+#  Functions:
+#    get_registers()
+#      uses a generator to return a register's values.   
+#  Powerpc_Register(value, bits)
+#    value = value of the register
+#    bits = amount of bytes the value is
+#
+cast = lambda reg, bits=0, nonreg=False: reg&((1<<bits)-1) if nonreg else reg.value&((1<<reg.bits)-1)
+class Powerpc_Register():
+    __slots__ = ['value','bits']
+    __int__ = lambda this: int(this.value)
+    def __init__(self, value, bits):
+        self.value = value
+        self.bits = bits
+    def set(self,value,casts=False,bits=16):
+        if value.__class__ == Powerpc_Register: # value is a register
+            raise TypeError('value is a register')
+        self.value = value
+        self.value = cast(self)
+        #print (self.value)
+        if casts:
+            self.value = cast(self,bits)
+class Powerpc_Architecture():
+    __slots__ = ['NS']
+    def __init__(self):
+        self.NS = dict( CR = Powerpc_Register(0,32), LR = Powerpc_Register(0,32), PC = Powerpc_Register(0,32) )
+        for n in range(32):
+            self.NS['r%i'%n] = self.NS['R%i'%n] = Powerpc_Register(0,32) # r1 == R1
+            self.NS['f%i'%n] = self.NS['F%i'%n] = Powerpc_Register(0,128) # f1 == F1
+    def get_registers(self): #generator to return registers
+        values = list(self.NS);#replace with iteritems in 2.X? Nevermind. Still could maybe be a different function in 2.X though.
+        num = 0
+        while num < len(values):
+            yield self.NS[values[num]]
+            num += 1;
+        
+#End of not yet implemented
+  
+class Virtual_Memory:
+    def __init__(self,max_memory):
+        if type(max_memory) != int:
+            raise TypeError("Max memory of virtual memory class instance must be type 'int'")
+        self.max_memory = max_memory
+        self.chunks = []
+    def allocate(self, address, memory):
+        if (address < 0) or (memory <= 0):
+            raise ValueError("Address or memory amount to be allocated in the Virtual Memory instance can not be negative.")
+        if address + memory > self.max_memory:#outside of max memory
+            raise IndexError("Can not allocate virtual_memory_chunks to an address outside the max_memory range of the Virtual_Memory instance." + "Attempted to allocate at " + str(hex(address)) + " for " + str(hex(memory)) + " bytes. max_memory of the current Virtual_Memory instance is " + str(hex(self.max_memory)))
+        if len(self.chunks) > 0:#contains virtual memory chunks
+            for chunk in range(0,len(self.chunks)):
+                #print((hex(memory + address)))
+                #print(hex((self.chunks[chunk][1] + self.chunks[chunk][2])))
+                #print("statement 1: " , (self.chunks[chunk][1] >= address and (address + memory) < (self.chunks[chunk][1] + self.chunks[chunk][2])))
+                #print("statement 2: " , (self.chunks[chunk][1] == address))
+                #print("statement 3: " , (address < self.chunks[chunk][1] and (address + memory > self.chunks[chunk][1])))
+                #print("statement 4: " , (address > self.chunks[chunk][1] and address < self.chunks[chunk][1] + self.chunks[chunk][2]))
+                #if (self.chunks[chunk][1] >= address and (memory + address) > (self.chunks[chunk][1])) or (self.chunks[chunk][1] == address) or (address < self.chunks[chunk][1] and (address + memory > self.chunks[chunk][1])) or (address > self.chunks[chunk][1] and address < self.chunks[chunk][1] + self.chunks[chunk][
+                if ((address < self.chunks[chunk][1]) and (address + memory >= self.chunks[chunk][1])) or ((address >= self.chunks[chunk][1]) and (address <= (self.chunks[chunk][1] + self.chunks[chunk][2]))):
+                  raise IndexError("Cannot allocate to an already allocated address. Allocation: Address: " + str(hex(address)) + ", Memory: " + str(hex(memory)) + " Overlaps allocation at " + str(hex(self.chunks[chunk][1])) + " for " + str(hex(self.chunks[chunk][2])) + " Bytes.")
+                self.chunks.append((Virtual_Memory_Chunk(self,address,memory),address,memory))
+        else:
+            self.chunks.append((Virtual_Memory_Chunk(self,address,memory),address,memory))
+    def deallocate(self,address):
+        if type(address) != int:
+            raise TypeError("Address used to dellocate memory in Virtual_Memory instance must be type 'int'. Type: " + str(type(address)))
+        deleted = False
+        for chunk in range(0,len(self.chunks)):
+            #print(hex(self.chunks[chunk][1]))
+            if self.chunks[chunk][1] == address:
+                del self.chunks[chunk] #deletes memory chunk
+                deleted = True
+                break
+        if (not deleted):
+            raise IndexError("Given address to deallocate memory of Virtual_Memory instance is not a correct Virtual_Memory_Chunk starting address. Address to deallocate is " + str(hex(address)))
+    def get_memory(self,address,memory):
+        if memory <= 0:
+            raise ValueError("Must get a positive number of memory from the Virtual Memory instance. Attempted to get from " + str(hex(address)) + " for " + str(hex(memory)) + " bytes.")
+        if address > self.max_memory:
+            raise IndexError("Can't get memory from an address outside the max_memory range of the Virtual_Memory instance. Attempted to get from " + str(hex(address)) + " for " + str(hex(memory)) + " bytes. max_memory of the current Virtual_Memory instance is " + str(hex(self.max_memory)))
+        chunk_num = "None" #initialize variable. Virtual Memory chunk to use.
+        for chunk in range(0,len(self.chunks)):
+            if self.chunks[chunk][1] <= address and (address + memory < (self.chunks[chunk][1] + self.chunks[chunk][2])):
+                chunk_num = chunk
+                break 
+        if chunk_num == "None":#no valid chunk was found
+            raise IndexError("No chunk was found that has memory allocated in the memory region to get from the Virtual Memory instance. Attempted to get from " + str(hex(address)) + " for " + str(hex(memory)) + " bytes.")
+        current_chunk = self.chunks[chunk]
+        address = address - current_chunk[1]
+        return current_chunk[0].memory[address:address + memory]
+    def set_memory(self,address,new_memory):
+        if type(new_memory) == str:
+            new_memory = findall('..',new_memory.upper())
+        if len(new_memory) == 0:
+            raise ValueError("Length of memory to set in the current Virtual Memory instance must be greater than 1 byte. Address to set " + str(hex(address)))
+        if address > self.max_memory:
+            raise IndexError("Can't set memory from an address outside the max_memory range of the Virtual_Memory instance. Attempted to set at " + str(hex(address)) + ". max_memory of the current Virtual_Memory instance is " + str(hex(self.max_memory)))
+        chunk_num = "None" #initialize variable. Virtual Memory chunk to use.
+        for chunk in range(0,len(self.chunks)):
+            if self.chunks[chunk][1] <= address and (address + len(new_memory) < (self.chunks[chunk][1] + self.chunks[chunk][2])):
+                chunk_num = chunk
+                break
+        if chunk_num == "None":#no valid chunk was found
+            raise IndexError("No chunk was found that has memory allocated in the memory region to get from the Virtual Memory instance. Attempted to get from " + str(hex(address)) + " for " + str(hex(memory)) + " bytes.")
+        current_chunk = self.chunks[chunk]
+        address = address - current_chunk[1]
+        current_chunk[0].memory[address:address + len(new_memory)] = new_memory
+        
+            
+class Virtual_Memory_Chunk:
+    def __init__(self,parent,start_address=0,allocated_memory=100,memory_input="00",architecture_class="None"):
+        #Error checking and formatting
+        if type(memory_input) != str:#memory input should be in hex, as a string.
+            raise TypeError("Incorrect type for memory input to create virtual memory. type: " + str(type(memory_input)))
+        if type(start_address) != int:
+            if type(start_address) == str:#allows hex
+                if len(start_address) > 3:#can contain 0x and a number
+                    if start_address[0:2] == "0x":
+                        start_address = int(start_address,16)#converts the hex to int
+                elif len(start_address) <= 2:
+                    if "0x" in start_address:
+                        raise ValueError("Input for starting address of virtual memory contains no hex after the 0x")
+                    else:
+                        raise TypeError("Incorrect type for starting address to create virtual memory.")
+                else:
+                    raise TypeError("Incorrect type for starting address to create virtual memory.")
+        if "0x" in memory_input: #non intrusive way to check. Allows memory_input to be less than 2 characters by not checking index [0:1]
+            if memory_input[0:2] == "0x":#removes "0x" from beginning if included
+                memory_input = memory_input[2:]#I chose to keep memory_input as a string instead of a byte array because it is faster.
+        if len(memory_input) > (allocated_memory * 2): #more memory given then allocated
+            raise IndexError("Memory inputted for creation of virtual memory exceeds the length allowed by the allocated memory")
+        elif len(memory_input) < (allocated_memory * 2):#less memory given then allocated
+            memory_input = memory_input + ("0" * ((allocated_memory * 2) - len(memory_input))) #fills unspecified memory with zeros
+        #else: memory given is equal to memory allocated
+        #initialization
+        self.parent = parent
+        self.start_address = start_address #this is the address of the first opcode, relevant to the addresses the opcodes can specify.
+        self.memory = findall('..',memory_input) #memory is a list of each individual byte of input
+        self.allocated_memory = allocated_memory#amount of memory available
+        self.architecture_class = architecture_class#where architecture class is used for bindings to directly input into encoding and decoding functions for the given architecture
+    def get_memory(self,address,amount):
+        if type(address) == str:
+            if "0x" in address:
+                address = int(address,16)
+        if type(amount) == str:
+            if "0x" in amount:
+                amount = int(amount,16)
+        if address < self.start_address or address > (self.start_address + self.allocated_memory):#is outside allocated memory range
+            raise IndexError("Address accessed by get_memory() function of Virtual Memory is outside the range of the allocated memory. Address: " + str(hex(address)) + ", Allocated Memory: " + str(hex(self.start_address)) + "-" + str(hex(self.start_address + self.allocated_memory)))
+        #gets amount bytes at address from memory
+        memory_start = address - self.start_address#internal memory of virtual memory
+        return self.memory[memory_start:memory_start + amount]
+    def set_memory(self,address,new_memory):
+        if type(address) == str:
+            if "0x" in address:
+                address = int(address,16)
+        if type(new_memory) != str:
+            raise IndexError("Memory Inputed by set_memory() function of Virtual Memory is not a valid type. Type: " + str(type(new_memory)))
+        if new_memory[0:2] == "0x":
+            new_memory = new_memory[2:]
+        memory_start = address - self.start_address#internal memory of virtual memory
+        if (address < self.start_address) or (address > (self.start_address + self.allocated_memory)) or (address + (len(new_memory) / 2) > (self.start_address + self.allocated_memory)): #is outside allocated memory range
+            raise IndexError("Address accessed by set_memory() function of Virtual Memory is outside the range of the allocated memory. Address: " + str(hex(address)) + "-" + str(hex(int(address + (len(new_memory) / 2))) + ", Allocated Memory: " + str(hex(self.start_address)) + "-" + str(hex(self.start_address + self.allocated_memory))))
+        if len(new_memory) % 2 != 0:#not even
+            new_memory = new_memory + self.memory[int(memory_start + (len(new_memory) / 2))][1]
+        self.memory[memory_start:int(memory_start + (len(new_memory) / 2))] = findall('..',new_memory) #updates memory
+    def print_variables(self):
+        print(self.start_address)
+        print(self.memory)
+        print(self.allocated_memory)
+        print(self.architecture_class)
+#Memory = Virtual_Memory_Chunk("0x80000000",100,"52AA6FBB52AA60BB52AA60BB52AA60BB")
+#print(Memory.get_memory("0x80000000","0xF"))
+#Memory.set_memory("0x80000000","0xFFF")
+#print(Memory.get_memory("0x80000000","0xF"))
+Memory = Virtual_Memory(0xFFFFFFFF)
+Memory.allocate(0x80000200,100)
+Memory.allocate(0x80000000,100)
+Memory.set_memory(0x80000002,'FAEE00112255')
+print(Memory.get_memory(0x80000002,0x10))
+newPPC = Powerpc_Architecture();
+#for i in newPPC.get_registers():
+#    print(bin(int(i)))

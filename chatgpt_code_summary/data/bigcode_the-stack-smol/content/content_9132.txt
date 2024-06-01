@@ -1,0 +1,78 @@
+import matplotlib.pyplot as plt, streamlit as st
+from typing import Iterable, Union
+
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_curve, auc, RocCurveDisplay
+
+def train(estimator: object, X: Iterable[Union[int, float]], y: Iterable):
+    """
+    Train custom classifier model.
+
+    Parameters:
+        estimator: Unfitted estimator.
+        X: Input training data.
+        y: Labels for test data.
+
+    Returns:
+        Fitted estimator model.
+    """
+    return estimator.fit(X=X, y=y)
+
+def classify(estimator: object, X: Iterable[Union[int, float]]):
+    """
+    Predict with custom classifier model.
+
+    Parameters:
+        estimator: Fitted estimator.
+        X: Input test data.
+
+    Returns:
+        Predicted labels.
+    """
+    return estimator.predict(X=X)
+
+
+def regress(estimator: object, X: Iterable[Union[int, float]], y: Iterable):
+    """
+    Predict with custom regressor model.
+
+    Parameters:
+        estimator: Fitted estimator.
+        X: Input test data.
+        y: Labels for test data.
+
+    Returns:
+        Predicted labels.
+    """
+    pass
+
+def evaluate(estimator: object, X: Iterable[Union[int, float]], y: Iterable):
+    """
+    Predict with custom classifier model.
+
+    Parameters:
+        estimator: Fitted estimator.
+        X: Input test data.
+        y: Labels for test data.
+
+    Returns:
+        Predicted labels.
+    """
+    pred = estimator.predict(X=X)
+
+    # classification report
+    report = classification_report(y_true=y, y_pred=pred)
+    st.write('Classification Report')
+    st.write(report)
+
+    # ROC curve
+    fpr, tpr, thresholds = roc_curve(y, pred)
+    roc_auc = auc(fpr, tpr)
+    _, _, figure = RocCurveDisplay(
+        fpr=fpr,
+        tpr=tpr,
+        roc_auc=roc_auc,
+        estimator_name=type(estimator)
+    )
+
+    st.pyplot(fig=figure)

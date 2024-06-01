@@ -1,0 +1,27 @@
+from . import (
+    admin,
+    ban,
+    close,
+    contact,
+    copyright,
+    donate,
+    download,
+    emoji,
+    help,
+    legacy,
+    noop,
+    roll,
+    search,
+    settings,
+    shortlink,
+    start,
+    stop,
+    submit,
+    top_missed,
+    view,
+    vote,
+)
+
+__all__ = ['admin', 'ban', 'contact', 'copyright', 'close', 'donate', 'download', 'emoji', 'help',
+           'legacy', 'noop', 'roll', 'search', 'settings',
+           'shortlink', 'start', 'stop', 'submit', 'top_missed', 'view', 'vote']

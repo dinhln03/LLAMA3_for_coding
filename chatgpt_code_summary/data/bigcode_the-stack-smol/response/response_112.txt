@@ -1,0 +1,15 @@
+The code defines a logging system for tracking and visualizing training diagnostics and images in machine learning projects. It consists of different logger classes like TensorboardLogger, LoggingLogger, PlotLogger, and a LoggerManager to manage these loggers.
+
+1. `BaseLogger` is the base class for loggers containing methods for logging diagnostics and images.
+   
+2. `TensorboardLogger` logs diagnostics and images using the TensorBoard library.
+   
+3. `LoggingLogger` logs diagnostics to the console and a log file using Python's logging module.
+   
+4. `PlotLogger` logs and plots diagnostics using matplotlib for visualization.
+   
+5. `PlotHandler` manages plotting multiple curves from different loggers onto a single plot.
+
+6. `Logger` initializes and manages different loggers based on specified options like Tensorboard, logging, and plotting.
+
+7. `LoggerManager` coordinates multiple loggers for different keys, allowing logging of diagnostics and images, and plotting when needed.

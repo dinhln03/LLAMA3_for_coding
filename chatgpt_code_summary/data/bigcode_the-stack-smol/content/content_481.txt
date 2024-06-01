@@ -1,0 +1,178 @@
+import datetime
+import threading
+import contextlib
+import pyotp
+import qrcode
+
+from errbot import BotPlugin, botcmd, arg_botcmd, cmdfilter
+
+# OTP expires every hour
+_OTP_EXPIRE = datetime.timedelta(hours=1)
+_BASE_TIME = datetime.datetime(year=datetime.MINYEAR, month=1, day=1)
+	
+class otp(BotPlugin):
+	'''
+	Implement One Time Passwords for command filtering.
+	'''
+
+	# lock protects storage
+	lock = threading.Lock()
+
+	def activate(self):
+
+		super(otp, self).activate()
+
+		# Set the data directory for the plugin
+		self.DATA_DIR = '{0}/ '.format(self.bot_config.BOT_DATA_DIR)
+
+		if 'commands' not in self:
+			self['commands'] = set()
+		if 'secrets' not in self:
+			self['secrets'] = dict()
+
+	@contextlib.contextmanager
+	def stored(self, key):
+		'''
+		This is a convenience tool to make plugin storage easier.
+		'''
+		value = self[key]
+		try:
+			yield value
+		finally:
+			self[key] = value
+
+	def get_configuration_template(self):
+		return dict(
+				provision_via_chat=False,
+				max_retries=10
+			)
+
+	def build_qrcode(self, user, url):
+		'''Internal method used to build the QRCode image for token provisioning.'''
+		prefix = self.DATA_DIR
+		qrcode.make(url).save('{0}{1}-qrcode.png'.format(prefix, user), format='png')
+
+	def get_identity(self, message):
+		'''Wrapper to make sure the correct identity object is used.'''
+		try:
+			return message.frm.aclattr
+		except AttributeError:
+			return message.frm.person
+
+	@botcmd(admin_only=True)
+	def otp_delete_all(self, message, args):
+		'''
+		WARNING: This command removes ALL OTP entries.
+		'''
+		self['commands'] = set()
+		self['secrets'] = dict()
+		return 'Removed **all** OTP tokens and command filters.'
+
+	@arg_botcmd('cmd', type=str, admin_only=True, template='otp_add_command')
+	def otp_add_command(self, message, cmd=None):
+		'''
+		Add a command to OTP command filtering.
+		'''
+		with self.lock:
+			with self.stored('commands') as commands:
+				commands.add(cmd)
+			return dict(command=cmd)
+			#return 'Added {0} to OTP filtered commands.'.format(cmd)
+
+	@arg_botcmd('cmd', type=str, admin_only=True, template='otp_remove_command')
+	def otp_remove_command(self, message, cmd=None):
+		'''
+		Remove a command from OTP command filtering.
+		'''
+		with self.lock:
+			with self.stored('commands') as commands:
+				if cmd not in commands:
+					return dict(err=True, command=cmd)
+				commands.remove(cmd)
+				return dict(err=False, command=cmd)
+
+	@botcmd(admin_only=True, template='otp_commands')
+	def otp_commands(self, message, args):
+		'''
+		List the commands that are filtered by OTP.
+		'''
+		return dict(commands=self['commands'])
+
+	@arg_botcmd('user', type=str, admin_only=True, template='otp_secret_create')
+	def otp_secret_create(self, message, user=None):
+		'''
+		Send a new secret for a user.
+		'''
+		secret = pyotp.random_base32()
+		with self.lock:
+			with self.stored('secrets') as secrets:
+				secrets[user] = (secret, 0, _BASE_TIME)
+			
+		totp = pyotp.TOTP(secret)
+		url = totp.provisioning_uri(user)
+		self.build_qrcode(user, url)
+
+		if self.config:
+			if self.config.get('provision_via_chat'):
+				f = open('{0}{1}-qrcode.png'.format(self.DATA_DIR, user), 'rb')
+				self.send_stream_request(self.build_identifier(user), f, name='OTP-secret.png')	
+				self.send_templated(self.build_identifier(user), 'otp_secret_create_pm', dict(url=url))
+				return dict(chat_enrollment=True, user=user)
+
+		return dict(chat_enrollment=False, user=user)
+
+	@arg_botcmd('otp', type=int, template='otp_auth')
+	def otp_auth(self, message, otp=None):
+		'''
+		Authenticate with OTP to the bot to pass OTP filtering.
+		'''
+		# OTP shouldn't be done in a group chat channel.
+		if message.is_group:
+			return dict(group_chat=True)
+		
+		identity = self.get_identity(message)
+		if identity not in self['secrets']:
+			return dict(not_enrolled=True)
+
+		secret, attempts, _ = self['secrets'][identity]
+		totp = pyotp.TOTP(secret)
+		if totp.verify(otp):
+			with self.lock:
+				with self.stored('secrets') as secrets:
+					secret, _, _ = secrets[identity]
+					secrets[identity] = (secret, 0, datetime.datetime.now())
+			return dict(success=True)
+		else:
+			# Increase the number of attempts, or burn secret
+			with self.lock:
+				with self.stored('secrets') as secrets:
+					secret, attempts, ts = secrets[identity]
+					if attempts > self.config.get('max_retries'):
+						secret = ''
+					secrets[identity] = (secret, attempts+1, ts)
+		return dict(success=False)
+
+	@cmdfilter
+	def otp_filter(self, message, command, args, dry_run):
+		'''
+		Filter commands to determine if user has recently validated with OTP.
+		'''
+		with self.lock:
+			if command in self['commands']:
+				self.log.info('{0} is protected by OTP. Processing.'.format(command))
+				identity = self.get_identity(message)
+				secrets = self['secrets']
+				if identity not in secrets:
+					# Command is filtered, user doesn't have an OTP token
+					self.send_templated(message.frm, 'otp_filter', dict(not_enrolled=True))
+					return None, None, None
+
+				_, _, lastotp = secrets[identity]
+				if datetime.datetime.now() - lastotp > _OTP_EXPIRE:				
+					self.log.info('{0} has not authenticated with OTP since expire'.format(identity))
+					self.send_templated(message.frm, 'otp_filter', dict(auth_required=True))
+					return None, None, None
+
+				self.log.info('OTP ok, permit command.')
+
+			return message, command, args

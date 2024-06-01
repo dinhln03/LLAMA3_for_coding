@@ -1,0 +1,48 @@
+"""
+Module Doc String
+"""
+
+EMOTIONS = [
+    "sentimental",
+    "afraid",
+    "proud",
+    "faithful",
+    "terrified",
+    "joyful",
+    "angry",
+    "sad",
+    "jealous",
+    "grateful",
+    "prepared",
+    "embarrassed",
+    "excited",
+    "annoyed",
+    "lonely",
+    "ashamed",
+    "guilty",
+    "surprised",
+    "nostalgic",
+    "confident",
+    "furious",
+    "disappointed",
+    "caring",
+    "trusting",
+    "disgusted",
+    "anticipating",
+    "anxious",
+    "hopeful",
+    "content",
+    "impressed",
+    "apprehensive",
+    "devastated",
+]
+
+
+
+
+def main():
+    """ Driver """
+
+if __name__ == "__main__":
+    main()
+

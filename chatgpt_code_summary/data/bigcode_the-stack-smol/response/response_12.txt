@@ -1,0 +1,6 @@
+This Python code snippet includes decorators and classes to handle XML-RPC communication for a command-line interface human player within a game. 
+
+1. The `error2fault` decorator catches specific exceptions and translates them into XML-RPC faults.
+2. The `fault2error` decorator catches XML-RPC faults and converts them back to custom exceptions.
+3. The `XMLRPCCliPlayer` class extends a basic player class, implementing methods to handle different game events and waiting for the player's turn.
+4. The `XMLRPCProxyController` class acts as a client-side proxy object, interfacing with the server/GameController via XML-RPC calls for actions like playing cards, fetching events and game states, registering players, and managing game flow.

@@ -1,0 +1,162 @@
+import numpy as np
+import pandas as pd
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import KFold
+import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+
+
+# import data and preprocess it
+def preprocessing(file_name: str):
+
+    # data import
+    fish_df = pd.read_csv(file_name)
+    fish_df = pd.get_dummies(fish_df, columns=['Species'], prefix='Species')
+
+    return fish_df
+
+
+# train-test split by a percentage.
+# input: dataframe, label column name, split ration, and random state
+# returns: x_train, x_test, y_train, y_test
+def split_df(user_df: pd.DataFrame, label_name: str, split_ratio=0.8, random_value=42):
+
+    x_train = user_df.sample(frac=split_ratio, random_state=random_value)
+    x_test = user_df.drop(x_train.index)
+
+    return x_train.drop(label_name, axis=1), x_test.drop(label_name, axis=1), pd.DataFrame(
+        x_train[label_name]), pd.DataFrame(x_test[label_name])
+
+
+# Create as arrays of trees in a given size and depth
+def create_random_forest(forest_size: int, max_depth: int, random_state_local: int):
+
+    random_forest = []
+    for i in range(0, forest_size, 1):
+
+        random_forest.append(DecisionTreeRegressor(criterion='friedman_mse', max_depth=max_depth,
+                                                   random_state=random_state_local))
+
+    return random_forest
+
+
+# train trees in a forest by fitting each tree to the previous tree's error
+# input: forest of trees, initial training guess, x and y databases, alpha coefficient.
+# returns: trained forest, initial average value, r_matrix of solutions and mse_list of the results (mean square error)
+def train_forest(random_forest: list, initial_average_weight: float, x_df: pd.DataFrame, y_df: pd.DataFrame,
+                 alpha: float = 0.1):
+
+    # initial average weight and residuals to be used in the 1st tree
+    predictions = np.ones(len(y_df))*initial_average_weight
+    residuals = np.array(y_df['Weight'])-predictions
+    residuals_matrix = [residuals]
+
+    # calculates the first mse value
+    mse_list = [(np.square(residuals)).sum()/len(predictions)]
+
+    for tree in random_forest:
+
+        # train the current stump
+        tree.fit(x_df, residuals)
+
+        # predict results based on its training error
+        residuals = tree.predict(x_df)
+
+        # record residuals and calculate mse
+        residuals_matrix.append(residuals)
+        mse_list.append((np.square(residuals)).sum()/len(predictions))
+
+        # update predictions and calculate new residuals
+        predictions = predictions + alpha * residuals
+        residuals = np.array(y_df['Weight']) - predictions
+
+    return random_forest, predictions, residuals_matrix, mse_list
+
+
+# predict test database by the trained random forest
+# input: forest of trees, initial training guess, x and y databases.
+# returns: mse_list of the forest (mean square error)
+def test_forest(random_forest: list, initial_average_weight: float, x_df: pd.DataFrame, y_df: pd.DataFrame,
+                alpha: float = 0.1):
+
+    predictions = np.ones(len(y_df))*initial_average_weight
+    mse_list = [(np.square(np.array(y_df['Weight']) - predictions)).sum()/len(predictions)]
+
+    for tree in random_forest:
+
+        predictions = predictions + alpha * tree.predict(x_df)
+        mse_list.append((np.square(np.array(y_df['Weight']) - predictions)).sum()//len(predictions))
+
+    return predictions, mse_list
+
+
+def main():
+
+    # data import and preprocessing
+    fish_df = preprocessing("Fish.csv")
+
+    # splitting of the data
+    x_train, x_test, y_train, y_test = split_df(fish_df, 'Weight', 0.8, 42)
+
+    # setting up a random forest:
+    #forest_size_list = [4, 5, 6, 7, 8] # variable calibrated by KFold train-validate
+    forest_size = 20
+    # max_depth_list = [1, 2, 3, 4, 5] # variable calibrated by KFold train-validate
+    max_depth = 3
+    random_state_local = 42
+    random_forest = create_random_forest(forest_size, max_depth, random_state_local)
+
+    #%% Train
+    #alpha_list = [0.1, 0.3, 0.5, 0.7, 0.9] # variable calibrated by KFold train-validate
+    alpha = 0.5  # gradiant coefficient
+    
+    kf = KFold(n_splits=2, shuffle=True, random_state=42)
+    for train_index, test_index in kf.split(x_train, y_train):
+
+        X_train, X_validate = x_train.iloc[train_index], x_train.iloc[test_index]
+        Y_train, Y_validate = y_train.iloc[train_index], y_train.iloc[test_index]
+
+        # first guess
+        initial_average_weight = np.average(Y_train['Weight'].tolist())
+
+        # train forest
+        random_forest, predictions_train, r_matrix, mse_list_train = train_forest(random_forest, initial_average_weight,
+                                                                                  X_train, Y_train, alpha)
+
+        # validate
+        predictions_validate, mse_list_validate = test_forest(random_forest, initial_average_weight, X_validate,
+                                                              Y_validate, alpha)
+
+        results = pd.DataFrame(data=np.arange(0, forest_size+1, 1), columns=['tree_intervals'])
+        results['Train'] = mse_list_train
+        results['Validation'] = mse_list_validate
+        fig = px.scatter(results, x='tree_intervals', y=['Train', 'Validation'], size='tree_intervals')
+        fig.update_layout(xaxis_title="Amount of Intervals (num.)", yaxis_title="mean square error")
+        fig.show()
+
+    #%% Test
+    predictions_test, mse_list_test = test_forest(random_forest, initial_average_weight, x_test, y_test, alpha)
+
+    # %% plot success rate vs tree intervals
+    fig = make_subplots(rows=1, cols=3, subplot_titles=('Train', 'Validation', 'Test'),
+                        x_title='Amount of Intervals (num.)', y_title='mean square error')
+
+    results = pd.DataFrame(data=np.arange(0, forest_size+1, 1), columns=['tree_intervals'])
+    results['Train'] = mse_list_train
+    fig.add_trace(go.Scatter(x=results['tree_intervals'], y=results['Train'], name='Train'), row=1, col=1)
+
+    results = pd.DataFrame(data=np.arange(0, forest_size + 1, 1), columns=['tree_intervals'])
+    results['Validation'] = mse_list_validate
+    fig.add_trace(go.Scatter(x=results['tree_intervals'], y=results['Validation'], name='Validation'), row=1, col=2)
+
+    results = pd.DataFrame(data=np.arange(0, forest_size + 1, 1), columns=['tree_intervals'])
+    results['Test'] = mse_list_test
+    fig.add_trace(go.Scatter(x=results['tree_intervals'], y=results['Test'], name='Test'), row=1, col=3)
+
+    fig.update_layout(title_text="Random Forest Gradient Boosting")
+    fig.show()
+
+
+if __name__ == '__main__':
+    main()

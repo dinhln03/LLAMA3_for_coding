@@ -1,0 +1,45 @@
+import keras
+import numpy as np
+
+from keras.datasets import mnist
+(x_train,y_train),(x_test,y_test)=mnist.load_data()
+
+x_train = x_train.reshape(60000,784)
+x_test = x_test.reshape(10000,784)
+x_train = x_train/255.0
+x_test = x_test/255.0
+
+from keras.utils import to_categorical
+y_train = to_categorical(y_train,num_classes = 10)
+y_test = to_categorical(y_test,num_classes = 10)
+
+from keras.layers import Input, Dense, Activation
+from keras.models import Model
+
+img_input = Input(shape=(784,))
+x = Dense(units = 30, activation = "relu")(img_input)
+y = Dense(units = 10, activation = "sigmoid")(x)
+
+model= Model(inputs = img_input, outputs=y)
+stringlist = []
+model.summary(print_fn=lambda x: stringlist.append(x))
+short_model_summary = "\n".join(stringlist)
+print(short_model_summary)
+#print(model.summary)
+
+model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=["accuracy"])
+model.fit(x_train,y_train, batch_size=150,epochs=4, validation_split=0.2)
+
+
+print(model.metrics_names)
+model.evaluate(x_test,y_test, batch_size = 128)
+
+preds=model.predict(x_test,batch_size = 125)
+preds = preds.argmax(axis = 1)
+y_test = y_test.argmax(axis = 1)
+
+print(preds[:10])
+print(y_test[:10])
+
+from sklearn.metrics import classification_report
+print(classification_report(y_test, preds))

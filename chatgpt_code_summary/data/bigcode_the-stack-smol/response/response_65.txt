@@ -1,0 +1,11 @@
+This Python script contains functions for loading a TensorFlow graph from a model file, collecting TensorFlow references based on a provided model path and feed dictionary, and summarizing the graph structure by identifying inputs, outputs, placeholders, and variables. 
+
+1. `load_graph(model_file, output_nodes_for_freeze=None)`: Loads a TensorFlow graph from a model file and freezes specified output nodes.
+
+2. `collect_tf_references(model_path, feed_dict, out_layer, output_nodes_for_freeze=None)`: Collects TensorFlow references based on the model path, feed dictionary, and output layer.
+
+3. `children(op, graph)`: Retrieves child operations of a given operation in the graph.
+
+4. `summarize_graph(model_path, output_nodes_for_freeze=None, reshape_net=None)`: Summarizes the TensorFlow graph structure by identifying inputs, outputs, placeholders, and variables. Can reshape the network based on provided dimensions if `reshape_net` is specified.
+
+To use these functions, ensure TensorFlow is installed, pass the required parameters, and follow any additional instructions specified within the functions for specific functionality.

@@ -1,0 +1,8 @@
+# YouTube: https://youtu.be/8lP9h4gaKYA
+# Publicação: https://caffeinealgorithm.com/blog/20210914/funcao-print-e-strings-em-python/
+
+print('Estamos a usar a função print() e eu sou uma string.')
+print("Continuo a ser uma string.")
+print('A Maria disse que o Miguel estava "doente".') # A Maria disse que o Miguel estava "doente".
+print('I\'m writing in English.') # I'm writing in English.
+print('Caffeine', 'Algorithm') # Caffeine Algorithm

@@ -1,0 +1,6 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ These two lines of Python code import all symbols from the "chain" and "element" modules from the current package or directory. This allows access to all functions, classes, and variables defined in these modules within the current codebase. It's commonly used to organize code across multiple files and to reuse functionality defined elsewhere in the package. This simple yet crucial step ensures that the program can make use of the functions and classes defined in the "chain" and "element" modules throughout its execution. } [/INST] { from .chain import *
+from .element import * }
+</s>

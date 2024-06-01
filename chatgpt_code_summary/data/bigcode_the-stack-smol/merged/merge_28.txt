@@ -1,0 +1,9 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python program determines the size of an object in bytes. It first imports the sys module for system-specific parameters and functions. Then, it prompts the user to input an object. The code calculates and displays the size of the entered object in bytes using the `sys.getsizeof()` function. Finally, it prints the result showing the size of the object in bytes. By running this code, users can easily find out the memory footprint of a specified object in Python. } [/INST] { #Python program to get the size of an object in bytes
+import sys
+Object = input("Enter any object: ")
+
+print(f'The size of the object {Object} is {sys.getsizeof(Object)} bytes') }
+</s>

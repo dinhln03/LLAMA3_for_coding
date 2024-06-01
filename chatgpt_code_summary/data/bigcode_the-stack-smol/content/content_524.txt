@@ -1,0 +1,29 @@
+# -*- coding: utf-8 -*-
+from irc3.plugins.command import command
+
+
+@command
+def echo(bot, mask, target, args):
+    """Echo command
+
+        %%echo <words>...
+    """
+    yield ' '.join(args['<words>'])
+
+
+@command(permission='admin', public=False)
+def adduser(bot, mask, target, args):
+    """Add a user
+
+        %%adduser <name> <password>
+    """
+    bot.privmsg(mask.nick, 'User added')
+
+
+@command(show_in_help_list=False)
+def my_secret_operation(bot, mask, target, args):
+    """Do something you don't want in !help all the time
+
+        %%my_secret_operation
+    """
+    yield "I like turtles"

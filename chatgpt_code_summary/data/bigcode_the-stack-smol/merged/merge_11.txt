@@ -1,0 +1,7 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code defines a class called Player with a constructor method called __init__. When an instance of the Player class is created, it will print the message "PLYR FAK SUM BODIE" to the console. This code snippet serves as an example to demonstrate how to define a class in Python and create a constructor method that initializes objects of that class with a specific action, such as printing a message. } [/INST] { class Player():
+    def __init__(self):
+        print("PLYR FAK SUM BODIE") }
+</s>

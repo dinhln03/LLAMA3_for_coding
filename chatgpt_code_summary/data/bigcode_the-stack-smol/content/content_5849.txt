@@ -1,0 +1,76 @@
+'''
+    This is to fetch the tip table data for a telegram_id
+
+Error Handling
+==============
+- /withdrawmemo tipuser11111 0.0001 TLOS pay_bill
+- /withdrawmemo tipuser11111 0.00001 EOS pay_bill
+{"code": 3050003, "name": "eosio_assert_message_exception", "what": "eosio_assert_message assertion failure"
+, "details": [{"message": "assertion failure with message: there is no balances available corresponding to t
+he parsed quantity symbol for the given from_id.", "file": "cf_system.cpp", "line_number": 14, "method": "eo
+sio_assert"}, {"message": "pending console output: ", "file": "apply_context.cpp", "line_number": 143, "meth
+od": "exec_one"}]} 
+
+- /withdrawmemo tipuser11117 0.0001 EOS pay_bill
+{"code": 3010001, "name": "name_type_exception", "what": "Invalid name", "details": [{"message": "Name conta
+ins invalid character: (7) ", "file": "name.hpp", "line_number": 26, "method": "char_to_symbol"}, {"message"
+: "", "file": "abi_serializer.cpp", "line_number": 570, "method": "_variant_to_binary"}, {"message": "", "fi
+le": "abi_serializer.cpp", "line_number": 570, "method": "_variant_to_binary"}, {"message": "", "file": "abi
+_serializer.cpp", "line_number": 584, "method": "_variant_to_binary"}, {"message": "\"{"from_id":410894301,"
+from_username":"abhi3700","to_ac":"tipuser11117","quantity":"0.0001 EOS","memo":"pay_bill"}\" is invalid arg
+s for action \"withdraw\" code \"tippertipper\". expected \"[{"name":"from_id","type":"uint64"},{"name":"fro
+m_username","type":"string"},{"name":"to_ac","type":"name"},{"name":"quantity","type":"asset"},{"name":"memo
+","type":"string"}]\"", "file": "chain_plugin.cpp", "line_number": 3396, "method": "abi_json_to_bin"}, {"mes
+sage": "code: tippertipper, action: withdraw, args: {"from_id":410894301,"from_username":"abhi3700","to_ac":
+"tipuser11117","quantity":"0.0001 EOS","memo":"pay_bill"}", "file": "chain_plugin.cpp", "line_number": 3402,
+ "method": "abi_json_to_bin"}]}
+'''
+import json
+
+import asyncio
+from aioeos import EosAccount, EosJsonRpc, EosTransaction
+from aioeos import types
+
+from aioeos.exceptions import EosAccountDoesntExistException
+from aioeos.exceptions import EosAssertMessageException
+from aioeos.exceptions import EosDeadlineException
+from aioeos.exceptions import EosRamUsageExceededException
+from aioeos.exceptions import EosTxCpuUsageExceededException
+from aioeos.exceptions import EosTxNetUsageExceededException
+
+from input import *
+
+# def validate(j):
+#     try:
+#         return json.load(j) # put JSON-data to a variable
+#     except json.decoder.JSONDecodeError:
+#         print("Invalid JSON") # in case json is invalid
+#     else:
+#         print("Valid JSON") # in case json is valid
+
+async def balance(
+        from_id,
+        # chat
+    ):
+    rpc = EosJsonRpc(url=Chain_URL)
+    table_response = await rpc.get_table_rows(
+                            code=tip_eosio_ac,
+                            scope= tip_eosio_ac, 
+                            table=tip_table, 
+                            lower_bound= from_id, 
+                            upper_bound= from_id
+                        )
+    
+    table_response = str(table_response).replace("\'", "\"")
+    table_response = table_response.replace("False", "false")       # As False is invalid in JSON, so replace with false
+    # print(table_response)
+    
+    for r in json.loads(table_response)['rows'][0]["balances"]:
+        prec, sym_name = r["key"]["sym"].split(",")
+        # print(f'token precision: {prec}')                 # precision
+        # print(f'token sym_name: {sym_name}')              # symbol name
+        # print(f'val: {r["value"]/10**int(prec)}\n\n')     # exact value
+        print(f'{r["value"]/10**int(prec)} {sym_name}')     # result e.g. 2.0 EOS
+
+if __name__ == '__main__':
+    asyncio.get_event_loop().run_until_complete(balance(410894301))

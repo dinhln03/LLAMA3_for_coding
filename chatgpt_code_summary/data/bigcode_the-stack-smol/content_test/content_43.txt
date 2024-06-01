@@ -1,0 +1,344 @@
+"""
+ Copyright (c) 2017 Robbin Bouwmeester
+ Permission is hereby granted, free of charge, to any person
+ obtaining a copy of this software and associated documentation
+ files (the "Software"), to deal in the Software without
+ restriction, including without limitation the rights to use,
+ copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following
+ conditions:
+
+ The above copyright notice and this permission notice shall be
+ included in all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ OTHER DEALINGS IN THE SOFTWARE."""
+
+__author__ = "Robbin Bouwmeester"
+__copyright__ = "Copyright 2017"
+__credits__ = ["Robbin Bouwmeester"]
+__license__ = "MIT"
+__version__ = "0.1"
+__maintainer__ = "Robbin Bouwmeester"
+__email__ = "Robbin.bouwmeester@ugent.be"
+__status__ = "nightly funzies"
+
+import pandas as pd
+from itertools import groupby
+import logging
+
+class LipidBLAST_entry():
+	def __init__(self,
+				 name="",
+				 ion="",
+				 mw=0.0,
+				 chem_form="",
+				 num_ms2_peaks=0,
+				 f_acyl_lengths=[],
+				 unsats=[],
+				 ms2=[]):
+
+		self.name = name
+		self.ion = ion
+		self.mw = mw
+		self.chem_form = chem_form
+		self.num_ms2_peaks = num_ms2_peaks
+		self.ms2 = ms2
+		self.f_acyl_lengths = f_acyl_lengths
+		self.unsats = unsats
+
+	def __str__(self):
+		ret_string = []
+		ret_string.append("================")
+		ret_string.append("")
+		ret_string.append("Lipid: %s" % (self.name))
+		ret_string.append("MW: %s" % (self.mw))
+		ret_string.append("Formula: %s" % (self.chem_form))
+		ret_string.append ("")
+		for f in self.ms2:
+			ret_string.append("%s\t%s\t%s" % (f[0],f[1],f[2]))
+		ret_string.append("")
+		ret_string.append("================")
+
+		return("\n".join(ret_string))
+
+class LipidBLAST():
+	def __init__(self,
+				 f_names=["LipidBlast-pos.msp","LipidBlast-neg.msp"],
+				 min_acyl_length=10,
+				 exclude_lyso=False,
+				 include_ions=["[M-H]-"], #,"[M+]","[M+H]+","[M+NH4]+","[M-H]-","[M-2H](2-)","[M-Ac-H]-","[M+Na2-H]+","[M+]","[M+NH4]+","[M+Na]+","[M-2H](2-)","[M-Ac-H]-"                   "[M+]","[M+H]+","[M+NH4]+","[M-H]-","[M-2H](2-)","[M-Ac-H]-","[M+Na2-H]+","[M+]","[M+NH4]+","[M+Na]+","[M-2H](2-)","[M-Ac-H]-"
+				 include_class=["PE","GPSer","GPCho","PC","GPA","PE","GPIns","GPEtn","GPGro"],  #,"SM","TG","CL",         #,"SM","TG","CL","GPSer","GPCho","PC","GPA","PE","GPIns","GPEtn","GPGro
+				 aggregate_acyls=False,
+				 use_simplified_names=True,
+				 dalt_diff_lookup_bin=1):
+
+		self.f_names = f_names
+		self.min_acyl_length = min_acyl_length
+		self.exclude_lyso = exclude_lyso
+		self.include_ions = include_ions
+		self.include_class = include_class
+		self.use_simplified_names = use_simplified_names
+		self.dalt_diff_lookup_bin = dalt_diff_lookup_bin
+		self.aggregate_acyls = aggregate_acyls
+		
+		self.lpb_dict = {}
+		self.ms1_dict = {}
+		self.ms1_dict_lookup = {}
+
+		self.tot_entr_read = 0
+
+		if len(self.f_names) > 0:
+			for f_name in f_names:
+				self.read_lpb(f_name)
+
+	def __str__(self):
+		ret_string = []
+
+		ret_string.append("Filenames: %s" % (self.f_names))
+		ret_string.append("Min acyl length: %s" % (self.min_acyl_length))
+		ret_string.append("Exclude lyso: %s" % (self.exclude_lyso))
+		ret_string.append("Include ions: %s" % (self.include_ions))
+		ret_string.append("Include lipid classes: %s" % (self.include_class))
+		ret_string.append("Use simplified names: %s" % (self.use_simplified_names))
+		ret_string.append("Lookup diff: %s Da" % (self.dalt_diff_lookup_bin))
+		ret_string.append("Total entries read: %s" % (self.tot_entr_read))
+		
+		return("\n".join(ret_string))
+
+	def read_lpb(self,f_name):
+		def _get_general_info(name):
+			# Currently limited to max 9 unsats
+			unsats = [n[0] for n in name.split(":")[1:]]
+			class_name = name.split("(")[0]
+			if "-" in class_name:
+				name_split = name.split("(")
+				name_split[0] = name.split("(")[0].replace("-","")
+				name = "(".join(name_split)
+
+			acyl_lengths = name.split(":")
+			acyl_lengths.pop()
+			f_acyl_lengths = []
+			for acl in acyl_lengths:
+				try:
+					if "/" in acl:
+						f_acyl_lengths.append(acl.split("/")[1].replace("d","").replace("methyl-",""))
+					elif "-" in acl:
+						f_acyl_lengths.append(acl.split("-")[1].replace("d","").replace("methyl-",""))
+					else:
+						f_acyl_lengths.append(acl.split("(")[1].replace("d","").replace("methyl-",""))
+				except:
+					logging.warning("Could not format to get acyl lengths: %s" % (name))
+					return([0],[0],"")			
+			try:
+				f_acyl_lengths = list(map(int,f_acyl_lengths))
+				unsats = list(map(int,unsats))
+			except:
+				logging.warning("Could not format to get acyl lengths: %s" % (name))
+				return([0],[0],"")
+				
+			return(f_acyl_lengths,unsats,class_name)
+
+		def _simplify_name(class_name,acyls,unsats):
+			simplified_name = ""
+			simplified_name += class_name
+			simplified_name += "("
+			if not self.aggregate_acyls:
+				for f,u in zip(f_acyl_lengths,unsats):
+					simplified_name += str(f)
+					simplified_name += ":"
+					simplified_name += str(u)
+					simplified_name += "/"
+				simplified_name = simplified_name[:-1] 
+			else:
+				simplified_name += str(sum(f_acyl_lengths))
+				simplified_name += ":"
+				simplified_name += str(sum(unsats))
+			
+			simplified_name += ")"
+			return(simplified_name)
+
+		def _get_chem_form(chem_form_native,ion):
+			chem_form_ion = ""
+			for i,c in enumerate(chem_form_native):
+				if i+1 >= len(chem_form_native):
+					if c.isdigit(): chem_form_ion += c
+					else: 
+						chem_form_ion += c
+						chem_form_ion += "1"
+				elif c.isdigit(): chem_form_ion += c
+				elif c.isupper() and chem_form_native[i+1].isdigit(): chem_form_ion += c
+				elif c.isupper() and chem_form_native[i+1].isupper(): 
+					chem_form_ion += c
+					chem_form_ion += "1"
+				elif chem_form_native[i+1].isdigit(): chem_form_ion += c
+			list_chem= [''.join(g) for _, g in groupby(chem_form_ion, str.isalpha)]
+			chem_form_ion = dict(zip(list_chem[::2],map(int,list_chem[1::2])))
+
+			if "+" not in ion:
+				if "[M-H]-" in ion:
+					try: chem_form_ion["H"] -= 1
+					except KeyError: logging.critical("ERROR: could not subtract atom when getting the ionized form from the molecule")
+				if "[M-2H](2-)" in ion:
+					try: chem_form_ion["H"] -= 2
+					except KeyError: logging.critical("ERROR: could not subtract atom when getting the ionized form from the molecule")
+				if "[M-Ac-H]-" in ion:
+					try: 
+						chem_form_ion["C"] += 2
+						chem_form_ion["H"] += 3
+						chem_form_ion["O"] += 2
+					except KeyError: logging.critical("ERROR: could not subtract atom when getting the ionized form from the molecule")
+			else:
+				if "[M+H]+" in ion:
+					try: chem_form_ion["H"] += 1
+					except KeyError: logging.critical("ERROR: could not add atom when getting the ionized form from the molecule")
+				if "[M+NH4]+" in ion:
+					try: 
+						if chem_form_ion.has_key("N"): chem_form_ion["N"] += 1
+						else: chem_form_ion["N"] = 1
+						chem_form_ion["H"] += 4
+					except KeyError: logging.critical("ERROR: could not add atom when getting the ionized form from the molecule")
+				if "[M+Na]+" in ion:
+					try:
+						if chem_form_ion.has_key("Na"): chem_form_ion["Na"] += 1
+						else: chem_form_ion["Na"] = 1
+					except KeyError: logging.critical("ERROR: could not add atom when getting the ionized form from the molecule")
+				if "[M+Na2-H]+" in ion:
+					try: 
+						if chem_form_ion.has_key("Na"): chem_form_ion["Na"] += 2
+						else: chem_form_ion["Na"] = 2
+						chem_form_ion["H"] -= 1
+					except KeyError: logging.critical("ERROR: could not add atom when getting the ionized form from the molecule")
+
+			return("".join([atom+str(num_atom) for atom,num_atom in sorted(chem_form_ion.items())]))
+
+		with open(f_name) as infile:
+			fragments = []
+			pre_c_mass = 0.0
+			name = ""
+			ion = ""
+			for line in infile:
+				line = line.strip()
+				#print(line)
+				if len(line) == 0:		
+					f_acyl_lengths,unsats,class_name = _get_general_info(name)			
+					f_acyl_lengths_error = [a for a in f_acyl_lengths if a < self.min_acyl_length and a != 0]
+					
+					if (len(class_name) == 0) or \
+						(ion_type not in self.include_ions) or \
+						(len([c for c in self.include_class if c in name]) == 0) or \
+						(self.exclude_lyso and "/0:0" in name) or \
+						(len(f_acyl_lengths_error) > 0):
+
+						fragments = []
+						pre_c_mass = 0.0
+						name = ""
+						ion_type = ""
+						continue
+			
+					simplified_name = _simplify_name(class_name,f_acyl_lengths,unsats)
+
+					new_entry = LipidBLAST_entry(name=name,
+												 ion=ion_type,
+												 mw=pre_c_mass,
+												 chem_form=chem_form_ion,
+												 num_ms2_peaks=num_peaks,
+												 ms2=fragments,
+												 f_acyl_lengths=f_acyl_lengths,
+												 unsats=unsats)
+					
+					self.lpb_dict["%s|%s" % (simplified_name,ion_type)] = new_entry
+
+					loc_dict = int(pre_c_mass) - int(pre_c_mass) % self.dalt_diff_lookup_bin
+
+					if loc_dict in self.ms1_dict_lookup.keys():
+						self.ms1_dict_lookup[loc_dict]["%s|%s" % (simplified_name,ion_type)] = new_entry
+					else:
+						self.ms1_dict_lookup[loc_dict] = {}
+						self.ms1_dict_lookup[loc_dict]["%s|%s" % (simplified_name,ion_type)] = new_entry
+
+					self.tot_entr_read += 1
+
+					fragments = []
+					pre_c_mass = 0.0
+					name = ""
+					ion_type = ""
+
+				elif ":" in line:
+					if line.startswith("PRECURSORMZ"):
+						pre_c_mass = float(line.split(": ")[1])
+					if line.startswith("Name: "):
+						name = line.split("; ")[-1]
+						ion_type = line.split("; ")[1]
+					if line.startswith("Comment: "):
+						# Some of the chemical formulas contain a ";" at the end; remove
+						chem_form_native = line.split("; ")[-1].replace(";","")
+						#print(chem_form_native)
+						chem_form_ion = _get_chem_form(chem_form_native,ion_type)
+					if line.startswith("Num Peaks:"):
+						num_peaks = int(line.split(": ")[-1])
+				else:
+					if line=="\x1a": #EOF
+						continue
+
+					fragments.append([float(line.split(" ")[0]),float(line.split(" ")[1]),line.split(" ")[2].replace("\"","")])
+
+class PrecursorFilter():
+	def __init__(self,db,ppm=10):
+		self.db = db
+		self.ppm = ppm
+
+	def retrieve_entry_pre_c_mass(self,pre_c_mass):
+		mass_error_threshold = (pre_c_mass*self.ppm)/1000000
+
+		ret_entries = []
+
+		loc_dict = int(pre_c_mass) - int(pre_c_mass) % self.db.dalt_diff_lookup_bin
+		loc_dict_lower = (int(pre_c_mass-mass_error_threshold)) - (int(pre_c_mass-mass_error_threshold)) % self.db.dalt_diff_lookup_bin
+		loc_dict_upper = (int(pre_c_mass+mass_error_threshold)) - (int(pre_c_mass+mass_error_threshold)) % self.db.dalt_diff_lookup_bin
+
+		# TODO set does not have to be list
+		locs_to_search = list(set([loc_dict,loc_dict_lower,loc_dict_upper]))
+		for loc in locs_to_search:
+			try:
+				for name,entr in self.db.ms1_dict_lookup[loc].items():
+					mass_error = abs(entr.mw-pre_c_mass)
+					if mass_error < mass_error_threshold:
+						ret_entries.append([name,mass_error,entr])
+			except KeyError:
+				logging.warning("Could not find an entry in the database for prec mass: %s" % (pre_c_mass))
+				continue
+		return(ret_entries)
+
+if __name__ == "__main__":
+	logging.basicConfig(filename="prec_filter.log",
+						level=logging.DEBUG,
+						filemode="w",
+						format="%(levelname)s:%(created)f:%(asctime)s:%(message)s")
+
+	logging.info("Reading the LPB database ...")
+	lpb = LipidBLAST()
+	logging.info("Done reading the LPB database ...")
+	logging.info(lpb)
+	
+	step_three_df = pd.read_csv("stepone_new.csv")
+	precf = Precursor_filter(lpb)
+	
+	prec_filt_result = []
+	for index,row in step_three_df.iterrows():
+		if (index % 10000==0):
+			logging.info("Analyzing row number and m/z: %s - %s" % (index,row["mz"]))
+		prec_hits = precf.retrieve_entry_pre_c_mass(row["mz"])
+		for hit in prec_hits:
+			prec_filt_result.append([row["mz"],hit[2].mw,hit[1],hit[0].split("|")[0],hit[2].chem_form,hit[0].split("|")[1]])
+	
+	prec_filt_result = pd.DataFrame(prec_filt_result)
+	prec_filt_result.columns = ["Input Mass","Matched Mass","Delta","Abbreviation","Formula","Ion"]
+	prec_filt_result.to_excel("batch_results.xlsx",index=False)

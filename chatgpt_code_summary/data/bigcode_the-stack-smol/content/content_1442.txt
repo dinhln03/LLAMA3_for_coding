@@ -1,0 +1,201 @@
+import tensorflow as tf
+import cv2
+import numpy as np
+import os
+from sklearn.model_selection import train_test_split
+import random
+import sys
+
+my_image_path = 'my_face'
+others_image_path = 'other_people'
+
+image_data = []
+label_data = []
+
+def get_padding_size(image):
+#def get_padding_size(image):
+    h, w, _ = image.shape   #长，宽和通道数
+    longest_edge = max(h, w)
+    top, bottom, left, right = (0, 0, 0, 0)
+    if h <= longest_edge:
+        dh = longest_edge - h
+        top = dh // 2
+        bottom = dh - top
+    elif w <= longest_edge:
+        dw = longest_edge - w
+        left = dw // 2
+        right = dw - left
+    else:
+        pass
+    return top, bottom, left, right #(0,0,0,0)
+
+
+#os.listdir(path):path 要获得内容目录的路径。获得当前目录的所有内容。
+def read_data(img_path, image_h=64, image_w=64):
+    for filename in os.listdir(img_path):
+        if filename.endswith('.jpg'):
+            filepath = os.path.join(img_path, filename)
+            image = cv2.imread(filepath)
+
+            top, bottom, left, right = get_padding_size(image)
+            image_pad = cv2.copyMakeBorder(image, top , bottom, left, right, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+            image = cv2.resize(image_pad, (image_h, image_w))
+
+            image_data.append(image)
+            label_data.append(img_path)
+
+read_data(others_image_path)
+read_data(my_image_path)
+
+image_data = np.array(image_data)
+label_data = np.array([[0,1] if label == 'my_faces' else [1,0] for label in label_data])
+
+#功能是从样本中随机的按比例选取train data和test data, test_size是样本占比。如果是整数的话就是样本的数量。random_state是随机数的种子。
+train_x, test_x, train_y, test_y = train_test_split(image_data, label_data, test_size=0.05, random_state=random.randint(0, 100))
+
+# image (height=64 width=64 channel=3)
+train_x = train_x.reshape(train_x.shape[0], 64, 64, 3)
+test_x = test_x.reshape(test_x.shape[0], 64, 64, 3)
+
+# nomalize
+train_x = train_x.astype('float32') / 255.0
+test_x = test_x.astype('float32') / 255.0
+
+print(len(train_x), len(train_y))
+print(len(test_x), len(test_y))
+
+#############################################################
+#batch_size = 128
+batch_size = 64
+num_batch = len(train_x) // batch_size
+
+#tf.placeholder() 占位符，传递一个tensor到session.run()中。
+X = tf.placeholder(tf.float32, [None, 64, 64, 3]) # 图片大小64x64 channel=3
+Y = tf.placeholder(tf.float32, [None, 2])
+
+keep_prob_5 = tf.placeholder(tf.float32)
+keep_prob_75 = tf.placeholder(tf.float32)
+
+def panda_joke_cnn():
+
+    W_c1 = tf.Variable(tf.random_normal([3, 3, 3, 32], stddev=0.01))
+    b_c1 = tf.Variable(tf.random_normal([32]))
+    conv1 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(X, W_c1, strides=[1, 1, 1, 1], padding='SAME'), b_c1))
+    conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    conv1 = tf.nn.dropout(conv1, keep_prob_5)
+    #先W*X，再W*X+b，再Relu,再max_pool, 再,dropout
+    #Dropout是指在模型训练时随机让网络某些隐含层节点的权重不工作，不工作的那些节点可以暂时认为不是网络结构的一部分，但是它的权重得保留下来（只是暂时不更新而已），因为下次样本输入时它可能又得工作了
+
+    W_c2 = tf.Variable(tf.random_normal([3, 3, 32, 64], stddev=0.01))
+    b_c2 = tf.Variable(tf.random_normal([64]))
+    conv2 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv1, W_c2, strides=[1, 1, 1, 1], padding='SAME'), b_c2))
+    conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    conv2 = tf.nn.dropout(conv2, keep_prob_5)
+
+    W_c3 = tf.Variable(tf.random_normal([3, 3, 64, 64], stddev=0.01))
+    b_c3 = tf.Variable(tf.random_normal([64]))
+    conv3 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv2, W_c3, strides=[1, 1, 1, 1], padding='SAME'), b_c3))
+    conv3 = tf.nn.max_pool(conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    conv3 = tf.nn.dropout(conv3, keep_prob_5)
+
+    W_c31 = tf.Variable(tf.random_normal([3, 3, 64, 128], stddev=0.01))
+    b_c31 = tf.Variable(tf.random_normal([128]))
+    conv31 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv3, W_c31, strides=[1, 1, 1, 1], padding='SAME'), b_c31))
+    conv31 = tf.nn.max_pool(conv31, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    conv31 = tf.nn.dropout(conv31, keep_prob_5)
+
+    W_c32 = tf.Variable(tf.random_normal([3, 3, 128, 128], stddev=0.01))
+    b_c32 = tf.Variable(tf.random_normal([128]))
+    conv32 = tf.nn.relu(tf.nn.bias_add(tf.nn.conv2d(conv31, W_c32, strides=[1, 1, 1, 1], padding='SAME'), b_c32))
+    conv32 = tf.nn.max_pool(conv32, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    conv32 = tf.nn.dropout(conv32, keep_prob_5)
+
+    # Fully connected layer
+    #W_d = tf.Variable(tf.random_normal([8*16*32, 512], stddev=0.01))
+    W_d = tf.Variable(tf.random_normal([128*128, 512], stddev=0.01))
+    b_d = tf.Variable(tf.random_normal([512]))
+    dense = tf.reshape(conv32, [-1, W_d.get_shape().as_list()[0]])
+    dense = tf.nn.relu(tf.add(tf.matmul(dense, W_d), b_d))
+    dense = tf.nn.dropout(dense, keep_prob_75)
+
+    W_out = tf.Variable(tf.random_normal([512, 2], stddev=0.01))
+    b_out = tf.Variable(tf.random_normal([2]))
+    out = tf.add(tf.matmul(dense, W_out), b_out)
+    return out
+
+#learning_rate = 0.001
+def train_cnn():
+    output = panda_joke_cnn()
+
+     #softmax_cross_entropy_with_logits():一步是先对网络最后一层的输出做一个softmax.
+    #第二步是softmax的输出向量[Y1，Y2,Y3...]和样本的实际标签做一个交叉熵.最后求一个平均，得到我们想要的loss.
+    #这个函数的返回值并不是一个数，而是一个向量.
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=output))
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(loss)
+    #optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+    accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(output, 1), tf.argmax(Y, 1)), tf.float32))
+
+    tf.summary.scalar("loss", loss)
+    tf.summary.scalar("accuracy", accuracy)
+    merged_summary_op = tf.summary.merge_all()
+
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+
+        summary_writer = tf.summary.FileWriter('./log', graph=tf.get_default_graph())
+
+        for e in range(50):
+            for i in range(num_batch):
+                batch_x = train_x[i*batch_size : (i+1)*batch_size]
+                batch_y = train_y[i*batch_size : (i+1)*batch_size]
+                _, loss_, summary = sess.run([optimizer, loss, merged_summary_op], feed_dict={X: batch_x, Y: batch_y, keep_prob_5:0.5, keep_prob_75: 0.75})
+
+                summary_writer.add_summary(summary, e*num_batch+i)
+                print(e*num_batch+i, "loss= ", loss_)
+
+                if (e*num_batch+i) % 100 == 0:
+                    acc = accuracy.eval({X: test_x, Y: test_y, keep_prob_5:1.0, keep_prob_75: 1.0})
+                    print(e*num_batch+i,"acc= ", +acc)
+                    # save model
+                    if acc > 0.99:
+                        saver.save(sess, "G:/codes/tensorflow2/WhetherOrNotMe/models/whether_orNot_me.model", global_step=e*num_batch+i)
+                        if e*num_batch+i > 0:
+                            sys.exit(0)
+
+train_cnn()
+output = panda_joke_cnn()
+predict = tf.argmax(output, 1)
+
+saver = tf.train.Saver()
+sess = tf.Session()
+saver.restore(sess, tf.train.latest_checkpoint('.'))
+
+def is_my_face(image):
+    res = sess.run(predict, feed_dict={X: [image/255.0], keep_prob_5:1.0, keep_prob_75: 1.0})
+    if res[0] == 1:
+        return True
+    else:
+        return False
+
+face_haar = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+face_haar.load('D:/Program Files (x86)/Miniconda3/Library/etc/haarcascades/haarcascade_frontalface_default.xml')
+cam = cv2.VideoCapture(0)
+
+while True:
+    _, img = cam.read()
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_haar.detectMultiScale(gray_image, 1.3, 5)
+    for face_x,face_y,face_w,face_h in faces:
+        face = img[face_y:face_y+face_h, face_x:face_x+face_w]
+
+        face = cv2.resize(face, (64, 64))
+
+        print("my face:"+is_my_face(face))
+
+        cv2.imshow('img', face)
+        key = cv2.waitKey(30) & 0xff
+        if key == 27:
+            sys.exit(0)
+
+sess.close()

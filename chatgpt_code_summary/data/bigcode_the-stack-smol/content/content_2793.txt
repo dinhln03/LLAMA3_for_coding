@@ -1,0 +1,103 @@
+import pandas as pd
+import sys
+from os import path
+import numpy
+from sys import exit
+
+def main():   
+    if len(sys.argv)!=5:
+        print("Incorrect no. of parameters passed.")
+        exit(0)
+    
+    i=sys.argv[1]
+    w=sys.argv[2]
+    im=sys.argv[3]
+    result=sys.argv[4]
+    if not i.endswith('.csv'):
+        print("Input file is not in .csv format.")
+        exit(0)
+    if not path.exists(i):
+        print("No such file exists!!")
+        exit(0)
+    
+    f = pd.read_csv(i)
+    c = f.shape[-1]
+    if c<3:
+        print("File should have at least 3 or more columns.")
+        exit(0)
+    k=0
+    for i in f.columns:
+        k=k+1
+        for j in f.index:
+            if k!=1:
+                v=isinstance(f[i][j],numpy.int64)
+                v1=isinstance(f[i][j],float)
+                if not v and not v1:
+                    print(f'It is not a numeric value in {k} column.')
+                    exit(0)
+    weights=w.split(',')
+    impacts=im.split(',')
+    
+    for i in range(0, len(weights)): 
+        weights[i] = int(weights[i])  
+                         
+    if  len(weights)!=len(impacts) and len(weights)!=len(f.iloc[:,1:]):
+        print("No. of input Impacts, Weights and columns(from second to last) should be similar.")
+        exit(0)
+    
+    for j in impacts:
+        if j!='+' and j!='-':
+            print("Impact can be '+' or '-'.")
+            exit(0)
+    
+    if w.count(",")*2+1!=len(w) and im.count(",")*2+1!=len(im):
+        print("Weights and Impacts should be separated by commas(,).")
+        exit(0)
+           
+    a=f.iloc[:,1:]
+    vp=[]
+    vn=[]
+    sp=[]
+    sn=[]
+    skn=[]
+    p=[]
+    for col in range(a.shape[1]):
+            total=0
+            for row in range(a.shape[0]):
+                total=total+a.iloc[row,col]**2
+            total=total**0.5
+            for i in range(a.shape[0]):
+                    a.iloc[i,col]=a.iloc[i,col]/total
+            for j in range(a.shape[0]):
+                    a.iloc[j,col]=a.iloc[j,col]*weights[col]
+    
+            if impacts[col]=='+':
+                    vp.append(a.iloc[:,col].max())
+                    vn.append(a.iloc[:,col].min())
+            else:
+                    vp.append(a.iloc[:,col].min())
+                    vn.append(a.iloc[:,col].max())
+    
+    for m in range(a.shape[0]):
+                    temp=0
+                    ans=0
+                    for n in range(a.shape[1]):
+                        temp=temp+(a.iloc[m,n]-vp[n])**2
+                    temp=temp**0.5
+                    sp.append(temp)
+    
+                    for q in range(a.shape[1]):
+                        ans=ans+(a.iloc[m,q]-vn[q])**2
+                    ans=ans**0.5
+                    sn.append(ans)
+    for w in range(0,len(sp)):
+                    skn.append(sp[w]+sn[w])
+    for y in range(0,len(skn)):
+                    p.append(sn[y]/skn[y])
+    
+    f.insert(5,"Topsis Score",p)
+    f.insert(6,"Rank",f["Topsis Score"].rank(ascending=False))
+    f.to_csv(result)
+
+if __name__ == "__main__":
+    main()

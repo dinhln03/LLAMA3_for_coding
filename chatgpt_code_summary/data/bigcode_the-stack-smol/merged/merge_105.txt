@@ -1,0 +1,6 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code snippet imports various modules that are used for parsing and working with multiple languages. It includes imports for tools like Antlr4 and Waxeye for multilanguage support, as well as TatSu, Arpeggio, Parglare, and Parsimonious for parsing and grammar-related tasks in Python. By importing these modules, the code sets up the environment to utilize their functionalities in the current Python program, allowing for language parsing, grammar development, and related tasks to be performed efficiently. } [/INST] { from .multilanguage import antlr4, waxeye
+from .python import TatSu, arpeggio, parglare, parsimonious }
+</s>

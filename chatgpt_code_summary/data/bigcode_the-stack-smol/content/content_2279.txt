@@ -1,0 +1,25 @@
+from django.shortcuts import render,HttpResponse
+from game.models import Contact
+from django.contrib import messages
+
+# Create your views here.
+def index(request):
+    context={'variable':"This is sent."}
+    return render(request,'index.html',context)
+def about(request):
+    return render(request,'about.html')
+    #return HttpResponse("This is about page.")
+def products(request):
+    return render(request,'products.html')
+    #return HttpResponse("This is products page.")
+def contact(request):
+    if request.method=="POST":
+        firstname=request.POST.get('firstname')
+        lastname=request.POST.get('lastname')
+        phone=request.POST.get('phone')
+        subject=request.POST.get('subject')
+        contact=Contact(firstname=firstname, lastname=lastname, phone=phone, subject=subject)
+        contact.save()
+        messages.success(request, 'Your message has been successfully sent.')
+    return render(request,'contacts.html')
+    #return HttpResponse("This is contact page.")

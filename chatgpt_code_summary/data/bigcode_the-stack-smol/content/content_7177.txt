@@ -1,0 +1,49 @@
+ADD_USER_ROLE = '''
+    INSERT INTO UserRole(roleId, userId) VALUES (
+        (SELECT id FROM Role WHERE name = :roleName),
+        :userId
+    )
+'''
+
+#
+# User table queries
+#
+ADD_USER = '''
+    INSERT OR IGNORE INTO User(id, username) VALUES(:userId, :username)
+'''
+
+UPDATE_USERNAME = '''
+    UPDATE User
+    SET username = :username
+    WHERE id = :userId
+'''
+
+GET_USERNAME = '''
+    SELECT name FROM User WHERE id = :userId
+'''
+
+#
+# Tag queries
+#
+ADD_TAG = '''
+    INSERT INTO Tag(name) VALUES (:name)
+'''
+
+GET_IMAGE_TAGS = '''
+    SELECT Tag.name FROM Tag
+    JOIN ImageTag ON ImageTag.tagId = Tag.id
+    JOIN Image ON ImageTag.imageId = Image.id
+    WHERE Image.id = :imageId
+'''
+
+#
+# Image queries
+#
+ADD_IMAGE = '''
+    INSERT INTO Image(id, guid, submitterId, caption, qualityRating, channelId, postDate, hash)
+    VALUES (:imageId, :guid, :submitterId, :caption, 0, :channelId, :postDate, :hash)
+'''
+GET_IMAGE_HASH = '''
+    SELECT id, guid FROM Image
+    WHERE hash = :hash
+'''

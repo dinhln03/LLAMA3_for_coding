@@ -1,0 +1,51 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script provides a command-line interface to create a style guide for CSS/LESS/SASS. 
+
+1. It imports necessary modules like argparse, logging, pprint, guide, and settings.
+2. Defines a CLI function that sets up argument parsing for settings file and log level.
+3. Parses the arguments provided by the user, initializes logging with the specified log level, and configures markdown logging if the log level is not DEBUG.
+4. Uses the settings file specified by the user or defaults to 'vitalstyles.json' to create a style guide.
+5. If the script is executed directly (not as a module), it runs the CLI function to generate the style guide based on the provided settings. } [/INST] { import argparse
+import logging
+from pprint import pformat
+
+from . import guide
+from . import settings
+
+
+log = logging.getLogger(__name__)
+
+
+def cli(settingsobject=None):
+    parser = argparse.ArgumentParser(description='Create a CSS/LESS/SASS style guide.')
+    if not settingsobject:
+        parser.add_argument('-f', '--settingsfile',
+            dest='settingsfile', default='vitalstyles.json',
+            help='Path to settings file. Defaults to "vitalstyles.json".')
+    parser.add_argument('-l', '--loglevel',
+        dest='loglevel', default='INFO',
+        choices=['DEBUG', 'INFO', 'ERROR'], help='Loglevel.')
+    args = parser.parse_args()
+
+    loglevel = getattr(logging, args.loglevel)
+    logging.basicConfig(
+        format='[%(name)s] %(levelname)s: %(message)s',
+        level=loglevel
+    )
+
+    if loglevel > logging.DEBUG:
+        markdownlogger = logging.getLogger('MARKDOWN')
+        markdownlogger.setLevel(logging.WARNING)
+
+    if not settingsobject:
+        settingsobject = settings.Settings(args.settingsfile)
+    logging.debug('Creating vitalstyles styleguide with the following settings:\n%s',
+                  pformat(settingsobject.settings))
+    guide.Guide(settingsobject).render()
+
+
+if __name__ == '__main__':
+    cli() }
+</s>

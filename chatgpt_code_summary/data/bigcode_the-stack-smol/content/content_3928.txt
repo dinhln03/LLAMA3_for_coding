@@ -1,0 +1,2 @@
+name = input().split()
+print(name[0], name[1]*(len(name[1]) if len(name[1])!=5 else 4))

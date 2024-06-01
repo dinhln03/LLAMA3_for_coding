@@ -1,0 +1,5 @@
+This Python code defines two form classes for importing data in a Django application. 
+
+1. `ImportDataForm`: This base form allows users to select a file for import, specify a separator character, and set an option to continue on error when importing. It ensures that if the separator character is left empty, it defaults to a semicolon.
+
+2. `ImportIdentitiesForm`: This form extends `ImportDataForm` and adds a checkbox option to crypt passwords during the import process. It includes a help text to guide users on checking the option if passwords in the file are not yet encrypted.

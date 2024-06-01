@@ -1,0 +1,5 @@
+This Python code defines functions and classes to create template files for different integration types. It involves handling file operations, creating configuration details, and populating templates with the provided information. 
+- The `get_valid_templates` function fetches a list of valid templates from a specified directory.
+- The `construct_template_fields` function builds a configuration dictionary based on integration name and type, including author details, dependencies, and installation instructions.
+- The `create_template_files` function generates template files using the provided configuration and reads content if specified.
+- The `File` class manages reading and writing template files, handling binary files separately.

@@ -1,0 +1,13 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script uses the "magic" library to determine the MIME type of a file. It first imports the "magic" module and creates a Magic object with the argument 'mime=True'. After that, it prints the MIME type of a specific file using the 'from_file' method of the Magic object by providing the file path as an argument. The output will display the MIME type of the specified file located in the given file path ("/Users/mac/Documents/data/fastq/8.fastq"). Make sure to have the "magic" library installed to run this script successfully in Python 2.7.6 environment. } [/INST] { #!/usr/bin/evn python
+# -*- coding: utf-8 -*-
+# python version 2.7.6
+
+import magic
+
+mime = magic.Magic(mime=True)
+
+print mime.from_file("/Users/mac/Documents/data/fastq/8.fastq") }
+</s>

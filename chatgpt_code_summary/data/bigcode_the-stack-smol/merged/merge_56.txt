@@ -1,0 +1,84 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ The code consists of multiple test functions using pytest to validate various functions in a Python script:
+
+1. `test_download_to_file`: Downloads a test file and checks if a specific parameter is present in it.
+2. `test_ensure_datafile_downloads`: Ensures a test file is downloaded and contains a specific parameter.
+3. `test_ensure_datafile_uses_existing`: Uses existing file content if available.
+4. `test_make_record`: Creates a record based on a header and a line of data.
+5. `test_parse_header_rv`: Parses a header string into a dictionary format.
+6. `test_make_value`: Validates the conversion of strings to appropriate data types.
+7. `test_records_from_lines_skips_empty`: Tests a function to skip empty lines.
+8. `test_min_spread_record_rv`: Detects the record with the minimum spread between max and min values.
+9. `test_min_spread_day_num_rv`: Identifies the day number with the minimum temperature spread in records. } [/INST] { import pytest
+
+from temp import (download_to_file, ensure_datafile, records_from_lines, make_record, make_value, min_spread_record,
+                 min_spread_day_num, parse_header)
+
+
+def test_download_to_file(tmpdir):
+    file = tmpdir.join('test.txt')
+    download_to_file(file.strpath, 'https://httpbin.org/get?testParam=1')
+    assert 'testParam' in file.read()
+
+
+def test_ensure_datafile_downloads(tmpdir):
+    file = tmpdir.join('test.txt')
+    ensure_datafile(file.strpath, 'https://httpbin.org/get?testParam=1')
+    assert 'testParam' in file.read()
+
+
+def test_ensure_datafile_uses_existing(tmpdir):
+    file = tmpdir.join('test.txt')
+    file.write('content')
+    ensure_datafile(file.strpath, 'https://httpbin.org/get?testParam=1')
+    assert file.read() == 'content'
+
+
+def test_make_record():
+    header = {'One': (0, 1), 'Two': (3, 3), 'Three': (7, 2), 'Four': (10, 4)}
+    line = "1 2.2 3* FOUR"
+    rv = make_record(header, line)
+    assert set(rv.keys()) == set(header)
+    assert all(list(rv.values()))
+
+
+def test_parse_header_rv():
+    rv = parse_header(" One Two Three")
+    assert len(rv) == 3
+    assert rv['One'] == (1, 4)
+    assert rv['Two'] == (5, 4)
+    assert rv['Three'] == (9, 6)
+
+
+def test_make_value():
+    assert make_value('123') == 123
+    assert make_value('ASDF') == 'ASDF'
+    assert make_value('123.45') == 123.45
+    assert make_value('123*') == 123
+    assert make_value(' ') == None
+
+
+def test_records_from_lines_skips_empty():
+    lines = iter(['One', ' ', 'Two'])
+    assert len(list(records_from_lines(lines))) == 1
+
+
+def test_min_spread_record_rv():
+    records = [
+        {'max': 10, 'min': 0},
+        {'max': 1, 'min': 0},   # this one should be returned
+        {'max': None, 'min': None}
+    ]
+    assert min_spread_record(records, 'max', 'min') == {'max': 1, 'min': 0}
+
+
+def test_min_spread_day_num_rv():
+    records = [
+        {'Dy': 1, 'MxT': 10, 'MnT': 0},
+        {'Dy': 2, 'MxT': 5, 'MnT': 0},
+    ]
+    rv = min_spread_day_num(records)
+    assert rv == 2 }
+</s>

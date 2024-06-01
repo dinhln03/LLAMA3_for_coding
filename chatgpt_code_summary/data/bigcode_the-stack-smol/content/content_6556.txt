@@ -1,0 +1,230 @@
+#coding:utf-8
+
+# Chainer version 3.2 (use version 3.x)
+#
+# This is based on <https://raw.githubusercontent.com/chainer/chainer/v3/examples/mnist/train_mnist.py>
+#
+# This used mean_absolute_error as loss function.
+
+# Check version
+#  Python 3.6.4 on win32 (Windows 10)
+#  Chainer 3.2.0
+#  numpy 1.14.0 
+#  matplotlib  2.1.1
+
+
+from __future__ import print_function
+
+import argparse
+
+import chainer
+import chainer.functions as F
+import chainer.links as L
+from chainer import training, cuda
+from chainer.training import extensions
+from chainer.functions.loss.mean_squared_error import mean_squared_error
+from chainer.functions.loss.mean_absolute_error import mean_absolute_error
+from TM_dataset import *
+from plot_report_logscale import *
+
+
+
+class MLP(chainer.Chain):
+
+    def __init__(self, n_units, n_out):
+        super(MLP, self).__init__()
+        with self.init_scope():
+            # the size of the inputs to each layer will be inferred
+            self.l1 = L.Linear(None, n_units)  # n_in -> n_units
+            self.l2 = L.Linear(None, n_units)  # n_units -> n_units
+            self.l3 = L.Linear(None, n_units)  # n_units -> n_units
+            self.l4 = L.Linear(None, n_units)  # n_units -> n_units
+            self.l5 = L.Linear(None, n_out)  # n_units -> n_out
+            
+        # set random seed as fix value, avoid different result every time
+        np.random.seed(100)
+
+
+    def __call__(self, x):
+
+        h1 = F.relu(self.l1(x)) #F.sigmoid(self.l1(x))
+        h2 = F.relu(self.l2(h1)) #F.sigmoid(self.l2(h1))
+        h3 = F.relu(self.l3(h2)) #F.sigmoid(self.l3(h2))
+        h4 = F.relu(self.l4(h3)) #F.sigmoid(self.l4(h3))
+        return self.l5(h4)
+
+
+
+IN_CHANNELS =1  # input MONOCOLOR
+OUT_CHANNELS= 100  # Middle layer channels
+
+class CNN(chainer.Chain):
+#   INPUT -> ((CONV -> RELU) -> POOL) ->((CONV -> RELU) -> POOL) -> ->((CONV -> RELU) -> POOL) -> FC
+    def __init__(self, n_units, n_out, in_channels=IN_CHANNELS, out_channels=OUT_CHANNELS):
+        super(CNN, self).__init__()
+        with self.init_scope():
+            self.conv1=L.Convolution2D(in_channels, out_channels, (3,1) , pad=0)
+            self.conv2=L.Convolution2D(out_channels, out_channels, (3,1) , pad=0)
+            self.conv3=L.Convolution2D(out_channels, out_channels, (3,1) , pad=0)
+            self.l1=L.Linear( None, n_out)
+        	
+        # set random seed as fix value, avoid different result every time
+        np.random.seed(100)
+
+
+    def __call__(self, x):
+        h1 = F.relu(self.conv1(x))
+        h2 = F.max_pooling_2d( h1, (2,1) )
+        h3 = F.relu(self.conv2(h2))
+        h4 = F.max_pooling_2d( h3, (2,1) )
+        h5 = F.relu(self.conv3(h4))
+        h6 = F.max_pooling_2d( h5, (2,1) )
+        y = self.l1(h6)
+        
+        return y
+
+
+def main():
+    parser = argparse.ArgumentParser(description='estimation from formant to vocal tube model parameter')
+    parser.add_argument('--batchsize', '-b', type=int, default=100,
+                        help='Number of images in each mini-batch')
+    parser.add_argument('--epoch', '-e', type=int, default=650,
+                        help='Number of sweeps over the dataset to train')
+    parser.add_argument('--frequency', '-f', type=int, default=-1,
+                        help='Frequency of taking a snapshot')
+    parser.add_argument('--gpu', '-g', type=int, default=-1,
+                        help='GPU ID (negative value indicates CPU)')
+    parser.add_argument('--out', '-o', default='result',
+                        help='Prefix Directory Name to output the result')
+    parser.add_argument('--resume', '-r', default='',
+                        help='Resume the training from snapshot')
+    parser.add_argument('--unit', '-u', type=int, default=100,
+                        help='Number of units')
+    parser.add_argument('--noplot', dest='plot', action='store_false',
+                        help='Disable PlotReport extension')
+    parser.add_argument('--delta', '-d', type=float, default=0.5,
+                        help='delta for length and area: for train')
+    parser.add_argument('--delta_for_test', '-t', type=float, default=1.5,
+                        help='delta for length and area: for test')
+    parser.add_argument('--model_type', '-m', default='MLP',
+                        help='choice MLP or CNN')
+    args = parser.parse_args()
+
+    print('GPU: {}'.format(args.gpu))
+    print('# unit: {}'.format(args.unit))
+    print('# Minibatch-size: {}'.format(args.batchsize))
+    print('# epoch: {}'.format(args.epoch))
+
+
+    # check model type
+    if args.model_type == 'CNN':
+        CNN_flag=True
+        print('# CNN')
+    else:
+        CNN_flag=False
+        print('# MLP')
+    
+    # Load dataset
+    train = TM_DatsSet(args.delta, args.delta, CNN_flag)
+    test  = TM_DatsSet(args.delta_for_test, args.delta_for_test, CNN_flag)
+    n_out= train.n_out
+    out_dir= args.out + train.suffix_list
+    print('# result directory: ', out_dir)
+
+    # Set up a neural network to train
+    # Classifier reports mean_absolute/squared_error loss and accuracy at everypha=
+    # iteration, which will be used by the PrintReport extension below.
+    
+    # 損失の評価は独立事象ではないのでsoftmaxより距離の方が妥当かな
+    #
+    if CNN_flag:
+        model = L.Classifier(CNN(args.unit, n_out), lossfun=mean_absolute_error) #mean_squared_error)
+    else:
+        model = L.Classifier(MLP(args.unit, n_out), lossfun=mean_absolute_error) #mean_squared_error)
+    model.compute_accuracy= False  # no need compute accuracy
+    
+
+    
+    if args.gpu >= 0:
+        # Make a specified GPU current
+        chainer.cuda.get_device_from_id(args.gpu).use()
+        model.to_gpu()  # Copy the model to the GPU
+
+
+    # Setup an optimizer
+    optimizer = chainer.optimizers.Adam(alpha=0.001) #alpha=0.0001) 
+    optimizer.setup(model)
+
+
+    train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
+    test_iter = chainer.iterators.SerialIterator(test, args.batchsize,
+                                                 repeat=False, shuffle=False)
+
+    # Set up a trainer
+    updater = training.StandardUpdater(train_iter, optimizer, device=args.gpu)
+    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=out_dir)
+
+    # Evaluate the model with the test dataset for each epoch
+    trainer.extend(extensions.Evaluator(test_iter, model, device=args.gpu))
+
+    # Dump a computational graph from 'loss' variable at the first iteration
+    # The "main" refers to the target link of the "main" optimizer.
+    trainer.extend(extensions.dump_graph('main/loss'))
+
+    # Take a snapshot for each specified epoch
+    frequency = args.epoch if args.frequency == -1 else max(1, args.frequency)
+    trainer.extend(extensions.snapshot(), trigger=(frequency, 'epoch'))
+
+    # Write a log of evaluation statistics for each epoch
+    trainer.extend(extensions.LogReport())
+
+    # Save two plot images to the result dir
+    if args.plot and extensions.PlotReport.available():
+        trainer.extend(
+            PlotReport2(['main/loss', 'validation/main/loss'],
+                                  'epoch', file_name='loss.png', LogScale=True))
+
+
+    # Print selected entries of the log to stdout
+    # Here "main" refers to the target link of the "main" optimizer again, and
+    # "validation" refers to the default name of the Evaluator extension.
+    # Entries other than 'epoch' are reported by the Classifier link, called by
+    # either the updater or the evaluator.
+    trainer.extend(extensions.PrintReport(
+        ['epoch', 'main/loss', 'validation/main/loss', 'elapsed_time']))
+
+    # Print a progress bar to stdout
+    trainer.extend(extensions.ProgressBar())
+
+    if args.resume:
+        # Resume from a snapshot
+        chainer.serializers.load_npz(args.resume, trainer)
+
+    # Run the training
+    trainer.run()
+    
+    # Accuracy rate
+    print('checking accuracy rate... ') # transfer one by one data will take long time. It needs to improvement.
+    c0=0
+    for loop in range(train.__len__()):
+        x1=train.get_example(loop)
+        if args.gpu >= 0: # gpu
+            x_batch = cuda.cupy.asarray([x1[0]])
+            y_gpu=model.predictor(x_batch)
+            y=cuda.to_cpu(y_gpu.data)
+        else:  # cpu
+            x_batch = np.asarray([x1[0]])
+            y_cpu=model.predictor(x_batch)
+            y=y_cpu.data[0]
+        
+        #print ('input ',  x1[0] )
+        #print ('   predicted ', y, '(', np.round(y) , ')', 'correct ', x1[1] )
+        # 正解率、周波数のindex[整数]を指すことを想定しているので、四捨五入して一致していればＯＫとした。
+        
+        if np.round(y) == np.round(x1[1]):
+            c0+= 1
+    print ('Accuracy rate (index is equal, ratio[%]) ', (c0 * 100.0 / train.__len__() )   )
+
+if __name__ == '__main__':
+    main()
+

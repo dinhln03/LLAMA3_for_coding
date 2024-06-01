@@ -1,0 +1,94 @@
+import math
+import numpy as np
+from enum import IntEnum
+
+class Mode(IntEnum):
+    CUSTOM          = 0
+    EQUAL           = 1
+    GAUSS           = 2
+    GAUSS_SYM       = 3
+    PYRAMID         = 4
+    PYRAMID_SYM     = 5
+    SIVEROO_1       = 6
+    SIVEROO_2       = 7
+
+#This function will return an list of value, like below:
+# [0,1,2,3,...,n] -> [a,...,b]
+def scaleRange(n: int, a: int, b: int):
+    return [(x*(b-a)/(n-1))+a for x in range(0,n)]
+
+def equal(n: int):
+    return [1/n]*n
+
+def gauss(n: int):
+    r = range(n,0,-1)
+    val = [math.exp(-(2.0*x/n)**2) for x in r]
+    val = val/np.sum(val)
+    return val
+
+def gauss_sym(n: int):
+    n = n/2
+    r = range(int(n),-math.ceil(n),-1)
+    val = ([math.exp(-(2.0*x/(n))**2) for x in r])
+    val = val/np.sum(val)
+    return val
+
+def pyramid(n: int):
+    r = range(1,n+1)
+    val = [x/n for x in r]
+    val = val/np.sum(val)
+    return val
+
+def pyramid_sym(n: int):
+    r = range(0,n)
+    val = [(n/2)-abs(x-(n-1)/2) for x in r]
+    val = val/np.sum(val)
+    return val
+
+def siveroo1(n: int):
+    r = scaleRange(n,-3,0.1)
+    val = [math.floor(3*math.exp(-(x/1.9)**2))/3+0.1 for x in r]
+    val = val/np.sum(val)
+    return val
+
+# this function will stretch the given array (w) to a specific length (n)
+# example : n = 10, w = [1,2]
+# result : val = [1,1,1,1,1,2,2,2,2,2] , flip it, and then normalize it so its sum is equal to 1
+def stretch(n: int, w: int):
+    r = scaleRange(n,0,len(w)-0.1)
+
+    val = []
+    idx = [math.floor(x) for x in r]
+    for x in range(0,n):
+        index = int(idx[x])
+        val.append(w[index])
+    val = val/np.sum(val)
+    return val
+
+def null(n: int):
+    return [0]*n
+
+def get_weight(mode: Mode, count: int):
+    if count == 1:
+        return [1.0]
+    else:
+        return {
+            Mode.EQUAL          : equal(count),
+            Mode.GAUSS          : gauss(count),
+            Mode.GAUSS_SYM      : gauss_sym(count),
+            Mode.PYRAMID        : pyramid(count),
+            Mode.PYRAMID_SYM    : pyramid_sym(count),
+            Mode.SIVEROO_1      : siveroo1(count),
+            Mode.SIVEROO_2      : stretch(count,[1,3,3,2,2])
+        }.get(mode, [1, 0]) # fallback to [1,0] if fucked up
+
+def modeName(mode: Mode):
+    return {
+            Mode.EQUAL          : "[1] Equal",
+            Mode.GAUSS          : "[2] Gaussian Asymmetric",
+            Mode.GAUSS_SYM      : "[3] Gaussian Symmetric",
+            Mode.PYRAMID        : "[4] Pyramid Asymmetric",
+            Mode.PYRAMID_SYM    : "[5] Pyramid Symmetric",
+            Mode.SIVEROO_1      : "[6] Siveroo's Preset I",
+            Mode.SIVEROO_2      : "[7] Siveroo's Preset II"
+        }[mode]

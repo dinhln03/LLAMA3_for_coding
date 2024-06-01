@@ -1,0 +1,63 @@
+import os
+import sys
+import argparse
+import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.optim import Adam
+from torch.utils.data import Dataset
+import torchvision.transforms as transforms
+import pickle
+
+
+def normalize(image):
+    return (image - image.min()) / (image.max() - image.min())
+
+
+layer_activations = None
+
+def filter_explanation(x, model, cnnid, filterid, iteration=100, lr=1):
+    # x: 需要训练的图片
+    # cnnid, filterid: 指定第几层cnn中第几个filter
+    model.eval()
+
+    def hook(model, input, output):
+        global layer_activations
+        layer_activations = output
+
+    hook_handle = model.cnn[cnnid].register_forward_hook(hook)
+    # 当forward了第cnnid层cnn后， 要先呼叫hook, 才可以继续forward下一层cnn
+
+    # Filter activation: 我们先观察x经过被指定filter的activation map
+    model(x.cuda())
+    # 正式执行forward的步骤
+    filter_activations = layer_activations[:, filterid, :, :].detach().cpu()
+    # 根据function argument 指定的filterid把待定filter的activation map取出来
+    x = x.cuda()
+    x.requires_grad_()
+    optimizer = Adam([x], lr=lr)
+    # 利用偏微分和optimizer, 逐步修改input image来让filter activation越来越大
+    for iter in range(iteration):
+        optimizer.zero_grad()
+        model(x)
+
+        objective = -layer_activations[:, filterid, :, :].sum()
+        # 探究image的微量变化会怎样影响activation的程度，加负号代表做maximization
+        objective.backward()
+        optimizer.step()
+        # 修改input image来最大化filter activation
+    filter_visualization = x.detach().cpu().squeeze()[0]
+    # 完成图片修改，只剩下要画出来，因此可以直接detach并转成cpu tensor
+
+    hook_handle.remove()
+    # 一旦model register hook, 该hook就一致存在。如果之后继续register更多hook
+    # 那model一次forward要做的事情就越来越来越多，因此需要把hook拿掉
+
+    return filter_activations, filter_visualization
+
+
+
+

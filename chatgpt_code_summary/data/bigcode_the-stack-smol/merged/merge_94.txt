@@ -1,0 +1,16 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This code snippet tests a DataFrame stored in the 'detect_duplicates' module for duplicate or missing data. It imports the DataFrame 'df' from the module and defines three test functions: 'test_nan_names' checks for any null values in the 'name' column, 'test_dup_pid' verifies the 'patient_id' column for duplicate values, and 'test_phone_dup' examines the 'phone_number' column for duplicates. Each test uses assertions to validate that the specified condition holds true. These tests help ensure data integrity and quality within the DataFrame before further processing or analysis. } [/INST] { import sys
+sys.path.append('../scripts')
+from detect_duplicates import df
+
+def test_nan_names():
+    assert df.name.isnull().sum() == 0
+    
+def test_dup_pid():
+    assert df.patient_id.duplicated().sum() == 0
+
+def test_phone_dup():
+    assert df.phone_number.duplicated().sum() == 0 }
+</s>

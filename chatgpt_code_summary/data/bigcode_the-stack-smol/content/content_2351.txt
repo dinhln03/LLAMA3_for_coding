@@ -1,0 +1,35 @@
+"""Define family of algorithms and make them interchangeable
+
+The algorithms vary independetly from the clients using it.
+This class implements to IngestorInterface and dynamically invoke
+a suitable algorithm (strategy.algorithm()), through parse()
+abstract method. i.e. it is independent of how an algorithm
+is implemented.
+
+That means, the behavior can be changed without breaking the classes
+that use it, and the classes can switch between behaviors by changing
+the specific implementation used without requiring any
+significant code changes.
+"""
+
+from typing import List
+
+from .IngestorInterface import IngestorInterface
+from .QuoteModel import QuoteModel
+from .CSVImporter import CSVImporter
+from .PDFImporter import PDFImporter
+from .DocxImporter import DocxImporter
+from .TXTImporter import TXTImporter
+
+
+class Ingestor(IngestorInterface):
+    """Define family of algorithms & dynamically invoke the one of interest"""
+
+    importer_classes = [CSVImporter, PDFImporter, DocxImporter, TXTImporter]
+
+    @classmethod
+    def parse(cls, path: str) -> List[QuoteModel]:
+
+        for importer in cls.importer_classes:
+            if importer.can_ingest(path):
+                return importer.parse(path)

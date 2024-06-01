@@ -1,0 +1,105 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script defines parsers for processing show commands related to DNA Center (DNAC) interfaces. The `InterfaceSchema` class specifies the schema for `/dna/intent/api/v1/interface` and related endpoints. The schema defines various attributes for network interfaces. The `Interface` class inherits from `InterfaceSchema` and acts as the parser for processing the actual show command output.
+
+In the `cli` method of the `Interface` class, it retrieves the output for the specified interface or all interfaces, processes the data, filters out `None` values, and constructs a dictionary containing relevant interface information keyed by the port name.
+
+To summarize, this code segment is part of a framework for parsing and extracting structured data from DNAC interface show commands. } [/INST] { """
+    interface.py
+    DNAC parsers for the following show commands:
+
+    * /dna/intent/api/v1/interface
+"""
+
+import os
+import logging
+import pprint
+import re
+import unittest
+from genie import parsergen
+from collections import defaultdict
+
+from ats.log.utils import banner
+
+from genie.metaparser import MetaParser
+from genie.metaparser.util import merge_dict, keynames_convert
+from genie.metaparser.util.schemaengine import Schema, \
+                                         Any, \
+                                         Optional, \
+                                         Or, \
+                                         And, \
+                                         Default, \
+                                         Use
+# import parser utils
+from genie.libs.parser.utils.common import Common
+
+logger = logging.getLogger(__name__)
+
+# ============================================
+# Schema for '/dna/intent/api/v1/interface'
+# ============================================
+class InterfaceSchema(MetaParser):
+    """schema for /dna/intent/api/v1/interface, /dna/intent/api/v1/interface/{interface}"""
+
+    schema = {
+               Any(): {
+                       "adminStatus": str,
+                       Optional("className"): str,
+                       Optional("description"): str,
+                       "deviceId": str,
+                       Optional("duplex"): str,
+                       Optional("id"): str,
+                       "ifIndex": str,
+                       Optional("instanceTenantId"): str,
+                       Optional("instanceUuid"): str,
+                       "interfaceType": str,
+                       Optional("ipv4Address"): str,
+                       Optional("ipv4Mask"): str,
+                       "isisSupport": str,
+                       "lastUpdated": str,
+                       Optional("macAddress"): str,
+                       Optional("mappedPhysicalInterfaceId"): str,
+                       Optional("mappedPhysicalInterfaceName"): str,
+                       Optional("mediaType"): str,
+                       Optional("nativeVlanId"): str,
+                       "ospfSupport": str,
+                       "pid": str,
+                       "portMode": str,
+                       "portName": str,
+                       Optional("portType"): str,
+                       "serialNo": str,
+                       "series": str,
+                       Optional("speed"): str,
+                       "status": str,
+                       Optional("vlanId"): str,
+                       Optional("voiceVlan"): str
+               }
+             }
+
+# ============================================
+# Parser for '/dna/intent/api/v1/interface'
+# ============================================
+class Interface(InterfaceSchema):
+    """parser for /dna/intent/api/v1/interface, /dna/intent/api/v1/interface/{interface}"""
+
+    cli_command = ['/dna/intent/api/v1/interface', '/dna/intent/api/v1/interface/{interface}']
+
+    def cli(self,interface="", output=None):
+        if output is None:
+            if interface:
+                cmd = self.cli_command[1].format(interface=interface)
+            else:
+                cmd = self.cli_command[0]
+            out = self.device.get(cmd).json()['response']
+
+        else:
+            out = output
+
+        result_dict={}
+        for intf_dict in out:
+            # remove None values
+            result_dict[intf_dict['portName']] = {k: v for k, v in intf_dict.items() if v is not None}
+
+        return result_dict }
+</s>

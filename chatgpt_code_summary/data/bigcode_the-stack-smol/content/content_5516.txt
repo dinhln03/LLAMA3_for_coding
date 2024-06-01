@@ -1,0 +1,47 @@
+from neopixel import NeoPixel
+from machine import Pin
+from time import sleep
+from os import urandom
+
+#pin = Pin(14, Pin.OUT)
+np = NeoPixel(Pin(2, Pin.OUT), 8)
+pin = Pin(14, Pin.IN)
+test = 7/10
+while True:
+	can_win = True
+	if pin.value() == 0:
+		can_win = False
+		for i in range(20):
+			for i in range(0, 8):
+				np[i] = 150,0,0
+			np.write()
+			sleep(1/10)
+			for i in range(0, 8):
+				np[i] = 0,0,0
+			np.write()
+		test = 7/10
+	for i in range(0, 8):
+		np[i] = 0,0,0
+	np.write()
+	for i in range(0, 3):
+		vol = urandom(1)[0]
+		if vol%3 == 0:
+			np[i] = 10,0,0
+		if vol%3 == 1:
+			np[i] = 0,10,0
+		if vol%3 == 2:
+			np[i] = 0,0,10
+	np.write()
+	sleep(test)
+	if pin.value() == 0 and np[0] == np[1] and np[1] == np[2] and can_win:
+		for i in range(20):
+			for i in range(0, 8):
+				np[i] = 0,150,0
+			np.write()
+			sleep(1/10)
+			for i in range(0, 8):
+				np[i] = 0,0,0
+			np.write()
+		test = test*0.7
+		
+	

@@ -1,0 +1,130 @@
+import random
+import unittest
+from domain_tree.tree import DomainTree, DomainNode, NodeNotFoundException
+from domain_tree.domain import RealDomain, RealInterval
+
+
+class TestDomainTree(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        pass
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        pass
+
+    def setUp(self):
+        # self.d0 = {"x0": (0, 1)}
+        self.d0 = RealDomain({"x0": RealInterval((0, 1), (True, False))})
+
+    def tearDown(self) -> None:
+        pass
+
+    def test_npartition(self):
+        tree = DomainTree(domains=self.d0, min_split=0.5)
+        self.assertEqual(len(tree.leaves), 2)
+
+        tree = DomainTree(domains=self.d0, min_split=0.3)
+        self.assertIn(len(tree.leaves), [2, 3])
+
+        tree = DomainTree(domains=self.d0, min_split=0.2)
+        self.assertIn(len(tree.leaves), [3, 4, 5])
+
+        tree = DomainTree(domains=self.d0, min_split=0, depth_max=5)
+        n = (2 ** 5) / 2
+        self.assertEqual(len(tree.leaves), n)
+
+
+    def test_stress_functions(self):
+        for _ in range(10000):
+            tree = DomainTree(domains=self.d0, min_split=0, depth_max=5)
+
+        tree = DomainTree(domains=self.d0, min_split=0, depth_max=10)
+        for _ in range(10000):
+            tree.compute_f({"x0": random.random()})
+
+        with self.assertRaises(NodeNotFoundException):
+            for _ in range(10000):
+                tree.compute_f({"x0": random.random() + 1})
+
+
+    def test_contains(self):
+        tree = DomainTree(domains=self.d0, min_split=0.5)
+        x = {"x0": 0}
+        self.assertTrue(tree.contains(x))
+
+        x = {"x0": 1}
+        self.assertFalse(tree.contains(x))
+
+        x = {"x0": 0.5}
+        self.assertTrue(tree.contains(x))
+
+        #d = {"x0": (0, 1), "x1": (2, 3)}
+        d = RealDomain({"x0": RealInterval((0, 1), (True, False)), "x1": RealInterval((2, 3), (True, False))})
+        tree = DomainTree(domains=d, min_split=0.5)
+        x = {"x0": 0, "x1": 2}
+        self.assertTrue(tree.contains(x))
+
+        x = {"x0": 1, "x1": 2}
+        self.assertFalse(tree.contains(x))
+
+        x = {"x0": 0.5, "x1": 2.99}
+        self.assertTrue(tree.contains(x))
+
+        d = RealDomain({"x0": RealInterval((0, 1), (True, True)), "x1": RealInterval((2, 3), (False, False))})
+        tree = DomainTree(domains=d, min_split=0.5)
+        #tree.print_tree()
+        x = {"x0": 0, "x1": 2}
+        self.assertFalse(tree.contains(x))
+        x = {"x0": 0, "x1": 2.5}
+        self.assertTrue(tree.contains(x))
+
+    def test_compute_f(self):
+        tree = DomainTree(domains=self.d0, min_split=0.5)
+
+        with self.assertRaises(NodeNotFoundException):
+            tree.node_which_contains({"x0": -12})
+
+        x = {"x0": 0}
+        node = tree.node_which_contains(x)
+        self.assertIsNotNone(node.regression)
+        b = node.regression.coef_[0]
+        c = node.regression.intercept_
+
+        self.assertEqual(node.regression.predict([list(x.values())]), b * x[list(x.keys())[0]] + c)
+        self.assertEqual(tree.compute_f(x), node.regression.predict([list(x.values())]))
+
+
+class TestDomainNode(unittest.TestCase):
+
+    def setUp(self):
+        self.val = 10
+        d = RealDomain({"x0": RealInterval((0, 1), (True, False)), "x1": RealInterval((2, 3), (True, False))})
+        self.node = DomainNode(name="nome", domains=d, val=self.val)
+
+    def tearDown(self) -> None:
+        pass
+
+    def test_generate_regression(self):
+        self.node.generate_regression()
+        self.assertIsNotNone(self.node.regression)
+        self.assertIsNotNone(self.node.regression.coef_)
+        self.assertIsNotNone(self.node.regression.intercept_)
+
+    def test_contains(self):
+        self.assertTrue(self.node.contains({"x0": 0, "x1": 2}))
+        self.assertTrue(self.node.contains({"x0": 0.5, "x1": 2.5}))
+        self.assertFalse(self.node.contains({"x0": 1, "x1": 2}))
+        self.assertFalse(self.node.contains({"x0": 1, "x1": 3}))
+        self.assertFalse(self.node.contains({"x0": 0.2, "x1": 3}))
+
+    def test_kill(self):
+        self.node.dostuff(random=0.5)
+        self.assertIn(self.node.val, [self.val - 2, self.val - 1])
+        self.node.kill()
+        self.assertEqual(self.node.val, 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

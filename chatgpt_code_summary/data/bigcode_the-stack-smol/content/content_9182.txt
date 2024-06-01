@@ -1,0 +1,206 @@
+
+
+
+# this file is only for presentation of the swallow fish game
+# http://www.4399.com/flash/201247_4.htm
+
+from pyautogui import press, keyDown, keyUp
+from time import time
+import serialPart
+
+# u = 'up'
+# d = 'down'
+# l = 'left'
+# r = 'right'
+
+u = 'w'
+d = 's'
+l = 'a'
+r = 'd'
+
+
+
+def key_unit(key, period):
+    cmd_time_cost = 0.21
+    to_delay = period - cmd_time_cost
+    if to_delay > 0:
+        # start = time()
+        keyDown(key)  # mind that these them selves take time also
+        delay(period - 0.203)
+        keyUp(key)
+    else:
+        keyDown(key)
+        keyUp(key)
+        # print('cannot be too short',time())
+        # print(time()-start)
+
+
+def delay(period):  # in second
+    start = time()
+    while (time() - start) < period:
+        pass
+
+
+def sim_key_by_time(x, y, period=0.0000000000000001, thresh=50):  # adjust this period(second) for better game control
+    half_period = period / 2
+    key_x = key_y = None  # todo use this None to invoke no
+    # y = -88
+    # print(x, y, '000')
+    if x > 100:
+        x = 100
+    if y > 100:
+        y = 100
+    if x < -100:
+        x = -100
+    if y < -100:
+        y = -100
+    # print(x, y, '111')
+    if (x < -thresh) or (x > thresh):
+        if x > 0:
+            key_x = r
+        else:
+            key_x = l
+        x = abs(x) - thresh
+    else:
+        x = 0
+    if (y < -thresh) or (y > thresh):
+        if y > 0:
+            key_y = u
+        else:
+            key_y = d
+        y = abs(y) - thresh
+    else:
+        y = 0
+    # print(x, y, '222')
+    tx = x / (100 - thresh) * half_period
+    ty = y / (100 - thresh) * half_period
+    # tx = abs(x) * 0.01 * half_period
+    # ty = abs(y) * 0.01 * half_period
+    release_period = 2 * half_period - tx - ty
+
+    # print(key_x, key_y, tx, ty, period, release_period)
+    #
+    # t1 = time()
+    if key_x:
+        key_unit(key_x, tx)
+    if key_y:
+        key_unit(key_y, ty)
+        # delay(release_period)
+    # print(tx+ty,period,time()-t1)
+
+
+#
+def sim_key_by_press(x, y, thresh=10, div=1):
+    # half_period = period / 2
+    key_x = key_y = None  # todo use this None to invoke no
+    # y = -88
+    # print(x, y, '000')
+    if x > 100:
+        x = 100
+    if y > 100:
+        y = 100
+    if x < -100:
+        x = -100
+    if y < -100:
+        y = -100
+    # print(x, y, '111')
+    if (x < -thresh) or (x > thresh):
+        if x > 0:
+            key_x = r
+        else:
+            key_x = l
+        x = abs(x) - thresh
+    else:
+        x = 0
+    if (y < -thresh) or (y > thresh):
+        if y > 0:
+            key_y = u
+        else:
+            key_y = d
+        y = abs(y) - thresh
+    else:
+        y = 0
+    x = x // div
+    y = y // div
+    t1 = time()
+    while x > 0 or y > 0:
+        if x >= y:
+            press(key_x)
+            x -= x
+        else:
+            press(key_y)
+            y -= y
+    print(x + y, time() - t1)
+
+
+def sim_key_by_shortest_hold(x, y, thresh=10, div=10):
+    # half_period = period / 2
+    key_x = key_y = None  # todo use this None to invoke no
+    # y = -88
+    # print(x, y, '000')
+    if x > 100:
+        x = 100
+    if y > 100:
+        y = 100
+    if x < -100:
+        x = -100
+    if y < -100:
+        y = -100
+    # print(x, y, '111')
+    if (x < -thresh) or (x > thresh):
+        if x > 0:
+            key_x = r
+        else:
+            key_x = l
+        x = abs(x) - thresh
+    else:
+        x = 0
+    if (y < -thresh) or (y > thresh):
+        if y > 0:
+            key_y = u
+        else:
+            key_y = d
+        y = abs(y) - thresh
+    else:
+        y = 0
+    x = x // div
+    y = y // div
+    t1 = time()
+    while x > 0 or y > 0:
+        if x >= y:
+            key_unit(key_x, 0)
+            x -= x
+        else:
+            key_unit(key_y, 0)
+            y -= y
+    print(x + y, time() - t1)
+
+
+if __name__ == '__main__':
+    period = 1  # in second
+    last_time = time()
+    delay(1)  # wait for user to switch to game
+    # x_stop_center = 235
+    # y_stop_center = 74
+    ser = serialPart.serial_open()
+    x_stop_center, y_stop_center = serialPart.get_avg_stop_point(ser)
+
+    while True:
+        xyz_read = serialPart.read_one_period(ser)
+        z_read, y_read, x_read = xyz_read.values()  # order adjusted for the stick
+
+        # print(x_read,y_read)
+        x = -(x_read - x_stop_center)  # 在输出值在100以内不再解三角函数算相对角度增量了，虽然更为合理，粗略第当作线性近似吧
+        y = y_read - y_stop_center
+
+        now_time = time()
+        delta_time = now_time - last_time
+        if delta_time > period:
+            last_time = now_time
+            # print(x,y)
+            sim_key_by_time(x, y, thresh=5, period=1 * period)
+            # sim_key_by_press(x, y, div=10)
+            # sim_key_by_shortest_hold(x,y,div=30)
+
+# pyautogui.rightClick()
+# pyautogui.hotkey('ctrl', 'v')

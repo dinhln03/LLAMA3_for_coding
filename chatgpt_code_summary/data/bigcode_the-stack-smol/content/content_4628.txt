@@ -1,0 +1,139 @@
+import os
+import sys
+import time
+
+import _ollyapi
+
+def addscriptpath(script):
+    """
+    Add the path part of the scriptfile to the system path to
+    allow modules to be loaded from the same place.
+
+    Each path is added only once.
+    """
+    pathfound = 0
+
+    scriptpath = os.path.dirname(script)
+
+    for pathitem in sys.path:
+        if pathitem == scriptpath:
+            pathfound = 1
+            break
+    
+    if pathfound == 0:
+        sys.path.append(scriptpath)
+
+
+def runscript(script):
+    """
+    Run the specified script after adding its directory path to
+    system path.
+
+    This function is used by the low-level plugin code.
+    """
+    addscriptpath(script)
+    watchdog.reset()
+    argv = sys.argv
+    sys.argv = [ script ]
+    execfile(script, globals())
+    sys.argv = argv
+
+#-----------------------------------------------------------
+# Take over the standard text outputs
+#-----------------------------------------------------------
+class MyStdOut:
+    """
+    Dummy file-like class that receives stout and stderr
+    """
+    def write(self, text):
+        # OllyDbg can't handle newlines so strip them out
+        fixed = text.replace('\n', '')
+        if fixed != '':
+            _ollyapi.Addtolist(0, 0, fixed)
+
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return False
+
+# Redirect stderr and stdout to the OllyDbg log window
+sys.stdout = sys.stderr = MyStdOut()
+
+# Assign a default sys.argv
+sys.argv = [ "" ]
+
+# Have to make sure Python finds our modules
+sys.path.append(OLLYPYTHON_PATH)
+
+from ollyapi import *
+from ollyutils import *
+
+#-------------------------------------------------------------
+# Watchdog to catch runaway scripts after a specified timeout
+#
+# Usage:
+#        watchdog.install()
+#        watchdog.activate(10) # Use 10-second timeout
+#
+# Note: The watchdog only works for code running inside
+#       functions, not in global/module namespace.         
+#-------------------------------------------------------------
+class WatchDog():
+    """
+    Python tracer-based watchdog class
+    """
+    def __init__(self, timeout=10):
+        self.timestamp = 0
+        self.timeout = timeout
+        self.installed = False
+        self.active = False
+
+    def install(self):
+        """ Install the tracer function, required for the watchdog """
+        if not self.installed:
+            sys.settrace(self.tracer)
+            self.installed = True
+
+    def activate(self, timeout=None):
+        """ Activate the watchdog, with optional timeout change """
+        assert self.installed, "WatchDog must be installed before activating"
+        if timeout:
+            self.timeout = timeout
+        self.reset()
+        self.active = True
+
+    def deactivate(self):
+        """ Deactivate the watchdog """
+        self.active = True
+
+    def reset(self):
+        """ Reset the timer, useful for long-running scripts """
+        self.timestamp = time.clock()
+
+    def tracer(self, frame, event, arg):
+        """ Tracer function that receives the tracing events """
+        if not self.active:
+            return None
+        #if event == 'line':
+        #    if time.clock() - self.timestamp > self.timeout:
+        #        if AskYN(0, "The script has not finished in %d seconds\nWould you like to stop it now?" % self.timeout) == 1:
+        #            raise KeyboardInterrupt
+        #        else:
+        #            self.timestamp = time.clock()
+        return self.tracer
+
+watchdog = WatchDog(10)
+
+# Load the users personal init file
+
+
+# Plugin callback handlers
+ollypython_shortcuts = []
+
+def add_shortcut_handler(func):
+    # Need to also make sure the function is the right type
+    ollypython_shortcuts.append(func)
+
+def remove_shortcut_handler(func):
+    ollypython_shortcuts.remove(func)

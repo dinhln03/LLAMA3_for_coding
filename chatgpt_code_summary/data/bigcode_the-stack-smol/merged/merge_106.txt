@@ -1,0 +1,24 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script defines a package called PyStevedore for managing dynamic plugins in Python applications. It includes metadata such as the homepage and version information. The package dependencies are specified, requiring Python version 2.6 or higher. Additionally, it specifies dependencies on 'six' and 'pbr' Python packages for building and running the application, restricting the 'pbr' version to be between 2.0.0 and 2.1.0. The script is structured to facilitate the installation and use of PyStevedore with the necessary prerequisites. } [/INST] { # Copyright 2013-2021 Lawrence Livermore National Security, LLC and other
+# Spack Project Developers. See the top-level COPYRIGHT file for details.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR MIT)
+
+from spack import *
+
+
+class PyStevedore(PythonPackage):
+    """Manage Dynamic Plugins for Python Applications."""
+
+    homepage = "https://docs.openstack.org/stevedore/latest/"
+    pypi = "stevedore/stevedore-1.28.0.tar.gz"
+
+    version('1.28.0', sha256='f1c7518e7b160336040fee272174f1f7b29a46febb3632502a8f2055f973d60b')
+
+    depends_on('python@2.6:')
+
+    depends_on('py-six@1.10.0:', type=('build', 'run'))
+    depends_on('py-pbr@2.0.0:2.1.0', type=('build', 'run')) }
+</s>

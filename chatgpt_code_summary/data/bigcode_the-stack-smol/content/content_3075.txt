@@ -1,0 +1,26 @@
+import tensorflow as tf
+from TransformerNet.layers import Encoder, Decoder
+
+
+def Decoder_test(*args, **kwargs):
+    inputs = tf.random.uniform((64, 62), dtype=tf.int64, minval=0, maxval=200)  # (batch_size, input_seq_len)
+    enc_output = Encoder(num_layers=2, d_model=512, num_heads=8,
+                         d_ff=2048, input_vocab_size=8500,
+                         maximum_position_encoding=10000)(inputs, False, None)
+    target = tf.random.uniform((64, 26), dtype=tf.int64, minval=0, maxval=200)  # (batch_size, target_seq_len)
+
+    sample_decoder = Decoder(*args, **kwargs)
+    output, attn = sample_decoder(target,
+                                  enc_output=enc_output,
+                                  training=False,
+                                  look_ahead_mask=None,
+                                  padding_mask=None)
+
+    print(output.shape)  # (batch_size, target_seq_len, d_model)
+    print(attn['decoder_layer2_attention2'].shape)  # (batch_size, target_seq_len, input_seq_len)
+
+
+if __name__ == "__main__":
+    Decoder_test(num_layers=2, d_model=512, num_heads=8,
+                 d_ff=2048, target_vocab_size=8000,
+                 maximum_position_encoding=5000)

@@ -1,0 +1,52 @@
+#11_Duplicate in an array N+1 integer
+
+"""
+
+Given an array of n elements that contains elements from 0 to n-1, with any of these numbers appearing any number of times. Find these repeating numbers in O(n) and using only constant memory space.
+
+Example: 
+
+Input : n = 7 and array[] = {1, 2, 3, 6, 3, 6, 1}
+Output: 1, 3, 6
+
+Explanation: The numbers 1 , 3 and 6 appears more
+than once in the array.
+
+Input : n = 5 and array[] = {1, 2, 3, 4 ,3}
+Output: 3
+
+Explanation: The number 3 appears more than once
+in the array.
+
+"""
+
+"""
+Algorithm:
+
+    1. Traverse the array from start to end.
+
+    2. For every element,
+        take its absolute value and
+        if the abs(array[i])‘th element is positive, the element has not encountered before,
+        else if negative the element has been encountered before print the absolute value of the current element.
+Complexity Analysis: 
+
+Time Complexity: O(n), only one traversal is needed, so time complexity is O(n)
+Auxiliary Space: O(1), no extra space is required, so space complexity is constant
+    
+"""
+def printRepeating(arr, size):
+    print("The repeating elements are :")
+    for i in range(0,size):
+        if arr[abs(arr[i])] > 0:
+            arr[abs(arr[i])] =-arr[abs(arr[i])]
+        else:
+            print(abs(arr[i]), end=" ")
+
+
+arr = [1,2,3,1,3,6,6]
+arr_size = len(arr)
+
+printRepeating(arr, arr_size)
+
+

@@ -1,0 +1,1 @@
+from data.indicator.SE2.process import WB_computation_config, SDG_computation_config

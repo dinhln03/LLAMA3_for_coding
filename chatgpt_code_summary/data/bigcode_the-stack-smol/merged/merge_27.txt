@@ -1,0 +1,6 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python function named `number_of_occurrences` takes two parameters: a string `s` and a list `xs`. It returns the count of occurrences of the string `s` within the list `xs` using the `count` method available for lists in Python. This function essentially calculates how many times the given string `s` appears in the provided list `xs` and returns that count as the output. It can be used to efficiently determine the frequency of a specific element (in this case, a string) within a list. } [/INST] { def number_of_occurrences(s, xs):
+    return xs.count(s) }
+</s>

@@ -1,0 +1,95 @@
+# -:- coding:utf8 -:-
+import base64
+import hmac
+import json
+import sys
+import time
+import urllib
+import uuid
+from hashlib import sha1
+
+import requests
+from flask import current_app
+from werkzeug.local import LocalProxy
+
+DEFAULT_URL = 'https://sms.aliyuncs.com'
+
+SMS = LocalProxy(lambda: current_app.extensions['kits_sms'])
+
+
+class SMSSender(object):
+    def __init__(self, app_key, secret_key, url=DEFAULT_URL):
+        self.app_key = app_key
+        self.secret_key = secret_key
+        self.url = url
+
+    @staticmethod
+    def percent_encode(content):
+        # content = str(content)
+        res = urllib.quote(content, '')
+        res = res.replace('+', '%20')
+        res = res.replace('*', '%2A')
+        res = res.replace('%7E', '~')
+        return res
+
+    def sign(self, access_key_secret, params):
+        params = sorted(params.items(), key=lambda param: param[0])
+        canonical_querystring = ''
+        for (k, v) in params:
+            canonical_querystring += '&' + self.percent_encode(k) + '=' + self.percent_encode(v)
+
+        string_to_sign = 'GET&%2F&' + self.percent_encode(canonical_querystring[1:])  # 使用get请求方法
+
+        h = hmac.new(access_key_secret + "&", string_to_sign, sha1)
+        signature = base64.encodestring(h.digest()).strip()
+        return signature
+
+    def make_url(self, params):
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        parameters = {
+            'Format': 'JSON',
+            'Version': '2016-09-27',
+            'AccessKeyId': self.app_key,
+            'SignatureVersion': '1.0',
+            'SignatureMethod': 'HMAC-SHA1',
+            'SignatureNonce': str(uuid.uuid1()),
+            'Timestamp': timestamp,
+        }
+        for key in params.keys():
+            parameters[key] = params[key]
+
+        signature = self.sign(self.secret_key, parameters)
+        parameters['Signature'] = signature
+        url = self.url + "/?" + urllib.urlencode(parameters)
+        return url
+
+    def do_request(self, params):
+        url = self.make_url(params)
+        response = requests.get(url)
+        print response.ok, response.content
+
+    def send(self, template_code, sign_name, receive_num, param):
+        params = {
+            'Action': 'SingleSendSms',
+            'SignName': sign_name,
+            'TemplateCode': template_code,
+            'RecNum': receive_num,
+            'ParamString': json.dumps(param)
+        }
+        url = self.make_url(params)
+        response = requests.get(url)
+        if not response.ok:
+            current_app.logger.error(response.content)
+        return response.ok
+
+
+def init_extension(kits, app):
+    url = kits.get_parameter('SMS_URL', default=DEFAULT_URL)
+    app_key = kits.get_parameter("SMS_APP_KEY")
+    secret_key = kits.get_parameter('SMS_SECRET_KEY')
+    app.extensions['kits_sms'] = SMSSender(app_key, secret_key, url)
+
+
+if __name__ == '__main__':
+    sender = SMSSender('LTAIWLcy7iT5v7mr', 'gRL1rtYnyfKMDVZs7b4fhbosX0MAAo ')
+    print sender.send("SMS_49485493", u"testing", "18708140165", param={'code': "123456", 'product': "benjamin"})

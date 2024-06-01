@@ -1,0 +1,15 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code defines a plugin for using a Digital Bitbox hardware wallet in an Electrum wallet environment. It extends functionality from DigitalBitboxPlugin and utilizes a CmdLineHandler. The code includes a method `init_keystore()` that assigns the CmdLineHandler to the keystore for communication. The code checks if the keystore is of a specific class before assigning the handler. It uses the `@hook` decorator to specify when the `init_keystore()` method should be called. This setup ensures that the Digital Bitbox hardware wallet integrates correctly with the Electrum wallet through the defined plugin. } [/INST] { from electrum.plugins import hook
+from .digitalbitbox import DigitalBitboxPlugin
+from ..hw_wallet import CmdLineHandler
+
+class Plugin(DigitalBitboxPlugin):
+    handler = CmdLineHandler()
+    @hook
+    def init_keystore(self, keystore):
+        if not isinstance(keystore, self.keystore_class):
+            return
+        keystore.handler = self.handler }
+</s>

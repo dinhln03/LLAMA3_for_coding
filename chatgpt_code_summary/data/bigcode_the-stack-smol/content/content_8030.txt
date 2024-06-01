@@ -1,0 +1,98 @@
+from django import forms
+from vlabs import Config, AppManager
+
+
+class VlabsForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        self.vlcg = Config()
+        self.market = self.vlcg.getmarket()
+        super(VlabsForm, self).__init__(*args, **kwargs)
+        self.k = None
+        self.nameoftheapp = None
+
+    def auth(self):
+        self.fields['username'] = forms.CharField(label='username')
+        self.fields['password'] = forms.CharField(widget=forms.PasswordInput, label='password')
+
+    def selprj(self, list, user):
+        PRJ_SEL = zip(tuple(list), tuple(list))
+        self.fields['prj'] = forms.ChoiceField(widget=forms.RadioSelect, label='Progetti attivi', choices=PRJ_SEL)
+        # self.fields['user'] = forms.CharField(widget=forms.HiddenInput(), label='user', initial=user)
+
+    def chprjtempl(self, value):
+        self.fields['prj'] = forms.ChoiceField(widget=forms.HiddenInput(), label='prj', initial=value)
+
+    def createapp(self):
+        i = []
+        a = self.vlcg.getmarket()
+
+        for j in range(0, len(a)):
+            i.append(j)
+        APP_SEL = zip(tuple(i), tuple(a))
+        self.fields['app'] = forms.ChoiceField(widget=forms.RadioSelect, label='app', choices=APP_SEL)
+
+    def createenv(self, inputvar):
+        c = inputvar['appindex']
+        for k in inputvar.keys():
+            self.fields[k] = forms.CharField(label=inputvar[k])
+        self.fields['nameoftheapp'] = forms.CharField(label='name of the app')
+        self.fields['appindex'] = forms.CharField(widget=forms.HiddenInput(), label='appindex', initial=c)
+        self.fields['pvc'] = forms.BooleanField(label='PVC', required=False, initial=False)
+        self.fields['space'] = forms.IntegerField(label='PVC Space', initial=1, min_value=1, max_value=10)
+
+    def deleteapp(self):
+        i = []
+        a = self.vlam.getrunning()
+        for j in range(0, len(a)):
+            i.append(j)
+        APP_SEL = zip(tuple(i), tuple(a))
+        self.fields['run'] = forms.ChoiceField(widget=forms.RadioSelect, label='run', choices=APP_SEL)
+
+    def chooseapp(self, value):
+        self.fields['app'] = forms.ChoiceField(widget=forms.HiddenInput(), label='app', initial=value)
+
+    def updatevariables(self, oldvars):  ###da qui
+        for i in range(0, len(oldvars)):
+            self.fields[oldvars[i].name] = forms.CharField(label=oldvars[i].name, initial=oldvars[i].value)
+
+    def setquotas(self, spec_hard):
+        for k in spec_hard:
+            self.fields[k] = forms.CharField(label=k, required=False, initial=spec_hard[k])
+
+    def setlimits(self, vars):
+        self.fields['namespace'] = forms.CharField(widget=forms.HiddenInput(), label='namespace', initial=vars)
+        self.fields['type'] = forms.CharField(widget=forms.HiddenInput(), label='type', initial='limits')
+
+
+    def updatelimits(self, vars):
+        for i in range (0, len(vars)):
+            self.fields[vars[i]['name']] = forms.BooleanField(label=vars[i]['name'], initial=False)
+
+
+    def createns(self):
+        #alphalower = RegexValidator(regex=r'^[a-z]*[a-z0-9\-\_]*[a-z]')
+        self.fields['namespacename'] = forms.CharField(label='Name', required=True)
+
+
+
+
+
+
+
+'''
+        a = {'pods', 'requests.cpu', 'requests.memory', 'requests.ephemeral-storage', 'requests.storage', 'limits.cpu', 'limits.memory', 'limits.memory', 'limits.ephemeral-storage', 'configmaps', 'persistentvolumeclaims', 'replicationcontrollers', 'secrets', 'services'}
+
+        self.fields['pods'] = forms.CharField(label='pods', required=False, initial=actualvalues['pods'])
+        self.fields['requests.cpu'] = forms.CharField(label='requests.cpu', required=False, initial=actualvalues['requests.cpu'])
+        self.fields['requests.memory'] = forms.CharField(label='requests.memory', required=False, initial=actualvalues['requests.memory'])
+        self.fields['requests.ephemeral-storage'] = forms.CharField(label='requests.ephemeral-storage', required=False, initial=actualvalues['requests.ephemeral-storage'])
+        self.fields['requests.storage'] = forms.CharField(label='requests.storage', required=False, initial=actualvalues['requests.storage'])
+        self.fields['limits.cpu'] = forms.CharField(label='limits.cpu', required=False, initial=actualvalues['limits.cpu'])
+        self.fields['limits.memory'] = forms.CharField(label='limits.memory', required=False, initial=actualvalues['limits.memory'])
+        self.fields['limits.ephemeral-storage'] = forms.CharField(label='limits.ephemeral-storage', required=False, initial=actualvalues['limits.ephemeral-storage'])
+        self.fields['configmaps'] = forms.IntegerField(label='configmaps', required=False, initial=actualvalues['configmaps'])
+        self.fields['persistentvolumeclaims'] = forms.IntegerField(label='persistentvolumeclaims', required=False, initial=actualvalues['persistentvolumeclaims'])
+        self.fields['replicationcontrollers'] = forms.IntegerField(label='replicationcontrollers', required=False, initial=actualvalues['replicationcontrollers'])
+        self.fields['secrets'] = forms.IntegerField(label='secrets', required=False, initial=actualvalues['secrets'])
+        self.fields['services'] = forms.IntegerField(label='services', required=False, initial=actualvalues['services'])
+'''

@@ -1,0 +1,82 @@
+import importlib
+import json
+from inspect import iscoroutine
+from json import JSONDecodeError
+from typing import Any, Callable, Dict, List, Union
+
+from loguru import logger
+from parse import parse
+from pydantic import BaseModel, validator
+
+
+class Moshi(BaseModel):
+    call: Union[str, Callable]
+    args: List[Any]
+    kwargs: Dict[str, Any]
+
+    @validator("call")
+    def convert2str(cls, value: Union[str, Callable]):
+        if callable(value):
+            # TODO: after read it still in doubt what is the best
+            value = f"{value.__module__}:{value.__qualname__}"
+        return value
+
+
+class moshi:
+    def __new__(cls, to: str, *args, fallback: Callable = None, **kwargs):
+        function_path = a_json = to
+
+        # test hypothesis if to is a json
+        try:
+            call_detail = json.loads(a_json)
+
+            function_path = call_detail["call"]
+
+            # prioritize args and kwargs
+            args = [*call_detail.get("args", tuple()), *args]
+            kwargs = {**call_detail.get("kwargs", dict()), **kwargs}
+
+        except JSONDecodeError:
+            pass
+
+        parsed = parse(r"{import_path}:{function_name:w}", function_path)
+        if parsed is None:
+            if fallback:
+                return fallback(*args, **kwargs)
+            else:
+                raise Exception("argument `to` is invalid.")
+
+        import_path = parsed["import_path"]
+        function_name = parsed["function_name"]
+
+        try:
+            module = importlib.import_module(f"{import_path}")
+            function = getattr(module, function_name)
+            return function(*args, **kwargs)
+
+        except ModuleNotFoundError as e:
+
+            if fallback:
+                import os
+
+                logger.debug(
+                    "Fallback is about to be returned. This is cwd, {}", os.getcwd()
+                )
+                logger.exception("The exception")
+
+                return fallback(*args, **kwargs)
+
+            else:
+                raise e
+
+    @classmethod
+    async def moshi(cls, to: str, *args, fallback: Callable = None, **kwargs):
+        ret = cls(to, *args, fallback=fallback, **kwargs)
+        if iscoroutine(ret):
+            return await ret
+        else:
+            return ret
+
+    @staticmethod
+    def to_json(to: Union[str, Callable], *args, **kwargs):
+        return Moshi(call=to, args=args, kwargs=kwargs).json()

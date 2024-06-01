@@ -1,0 +1,17 @@
+This Python script defines classes for handling lipid data and filtering precursor ion matches. 
+
+1. `LipidBLAST_entry`: Defines a lipid entry with properties like name, ion type, molecular weight (mw), chemical formula, etc. It contains a method to format the entry for display.
+
+2. `LipidBLAST`: Initializes a lipid database by reading provided files and storing entries. It includes methods to read and store lipid data, simplify lipid names, and calculate chemical formulas for ions.
+
+3. `PrecursorFilter`: Defines a filter for matching precursor ion masses in the lipid database. It retrieves entries based on a given precursor mass and a specified ppm tolerance.
+
+4. The `__main__` section logs information, reads a lipid database, performs precursor filtering on a dataset, and outputs results to an Excel file.
+
+To use this script:
+- Ensure all necessary files are available.
+- Initialize the `LipidBLAST` class to read and store lipid data.
+- Create an instance of `PrecursorFilter` with a specified ppm tolerance.
+- Process data using the precursor filter and save the results to an Excel file.
+
+Note: The code includes detailed logging, file reading, data processing, and method calls to manage lipid entries and filter precursor ions for further analysis.

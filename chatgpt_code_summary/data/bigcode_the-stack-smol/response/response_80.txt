@@ -1,0 +1,11 @@
+This Python script contains configuration settings for a chatbot. 
+
+- It includes setting up the API key for the chatbot.
+- Configurations for auto-reply options in friend chats and group chats.
+- Settings for enabling features like preventing message recall and forwarding group at-messages.
+- Defines the bot master's name for remote control.
+- Options to monitor specific friends or groups.
+- Ability to forward messages to specified groups.
+- Configurations for monitoring group sharing activities.
+
+Each setting is outlined with comments for clarity. Modify these settings as needed to customize the chatbot's behavior.

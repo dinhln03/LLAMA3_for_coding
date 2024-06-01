@@ -1,0 +1,374 @@
+# pylint: disable=redefined-outer-name
+
+import pytest
+from dagster.core.code_pointer import ModuleCodePointer
+from dagster.core.definitions.reconstructable import ReconstructableRepository
+from dagster.core.host_representation.grpc_server_registry import ProcessGrpcServerRegistry
+from dagster.core.host_representation.handle import GrpcServerRepositoryLocationHandle
+from dagster.core.host_representation.origin import (
+    ExternalPipelineOrigin,
+    ExternalRepositoryOrigin,
+    InProcessRepositoryLocationOrigin,
+)
+from dagster.core.storage.pipeline_run import IN_PROGRESS_RUN_STATUSES, PipelineRunStatus
+from dagster.core.storage.tags import PRIORITY_TAG
+from dagster.core.test_utils import create_run_for_test, instance_for_test
+from dagster.daemon.run_coordinator.queued_run_coordinator_daemon import QueuedRunCoordinatorDaemon
+from dagster_tests.api_tests.utils import get_foo_pipeline_handle
+
+
+@pytest.fixture()
+def instance():
+    overrides = {
+        "run_launcher": {"module": "dagster.core.test_utils", "class": "MockedRunLauncher"},
+    }
+    with instance_for_test(overrides=overrides) as inst:
+        yield inst
+
+
+@pytest.fixture()
+def grpc_server_registry(instance):  # pylint: disable=unused-argument
+    with ProcessGrpcServerRegistry(wait_for_processes_on_exit=True) as registry:
+        yield registry
+
+
+def create_run(instance, **kwargs):
+    with get_foo_pipeline_handle() as pipeline_handle:
+        create_run_for_test(
+            instance,
+            external_pipeline_origin=pipeline_handle.get_external_origin(),
+            pipeline_name="foo",
+            **kwargs,
+        )
+
+
+def create_invalid_run(instance, **kwargs):
+    create_run_for_test(
+        instance,
+        external_pipeline_origin=ExternalPipelineOrigin(
+            ExternalRepositoryOrigin(
+                InProcessRepositoryLocationOrigin(
+                    ReconstructableRepository(ModuleCodePointer("fake", "fake"))
+                ),
+                "foo",
+            ),
+            "wrong-pipeline",
+        ),
+        pipeline_name="wrong-pipeline",
+        **kwargs,
+    )
+
+
+def get_run_ids(runs_queue):
+    return [run.run_id for run in runs_queue]
+
+
+def test_attempt_to_launch_runs_filter(instance, grpc_server_registry):
+
+    create_run(
+        instance,
+        run_id="queued-run",
+        status=PipelineRunStatus.QUEUED,
+    )
+
+    create_run(
+        instance,
+        run_id="non-queued-run",
+        status=PipelineRunStatus.NOT_STARTED,
+    )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["queued-run"]
+
+
+def test_attempt_to_launch_runs_no_queued(instance, grpc_server_registry):
+
+    create_run(
+        instance,
+        run_id="queued-run",
+        status=PipelineRunStatus.STARTED,
+    )
+    create_run(
+        instance,
+        run_id="non-queued-run",
+        status=PipelineRunStatus.NOT_STARTED,
+    )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert instance.run_launcher.queue() == []
+
+
+@pytest.mark.parametrize(
+    "num_in_progress_runs",
+    [0, 1, 3, 4, 5],
+)
+def test_get_queued_runs_max_runs(instance, num_in_progress_runs, grpc_server_registry):
+    max_runs = 4
+
+    # fill run store with ongoing runs
+    in_progress_run_ids = ["in_progress-run-{}".format(i) for i in range(num_in_progress_runs)]
+    for i, run_id in enumerate(in_progress_run_ids):
+        # get a selection of all in progress statuses
+        status = IN_PROGRESS_RUN_STATUSES[i % len(IN_PROGRESS_RUN_STATUSES)]
+        create_run(
+            instance,
+            run_id=run_id,
+            status=status,
+        )
+
+    # add more queued runs than should be launched
+    queued_run_ids = ["queued-run-{}".format(i) for i in range(max_runs + 1)]
+    for run_id in queued_run_ids:
+        create_run(
+            instance,
+            run_id=run_id,
+            status=PipelineRunStatus.QUEUED,
+        )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=max_runs,
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert len(instance.run_launcher.queue()) == max(0, max_runs - num_in_progress_runs)
+
+
+def test_priority(instance, grpc_server_registry):
+    create_run(instance, run_id="default-pri-run", status=PipelineRunStatus.QUEUED)
+    create_run(
+        instance,
+        run_id="low-pri-run",
+        status=PipelineRunStatus.QUEUED,
+        tags={PRIORITY_TAG: "-1"},
+    )
+    create_run(
+        instance,
+        run_id="hi-pri-run",
+        status=PipelineRunStatus.QUEUED,
+        tags={PRIORITY_TAG: "3"},
+    )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == [
+        "hi-pri-run",
+        "default-pri-run",
+        "low-pri-run",
+    ]
+
+
+def test_priority_on_malformed_tag(instance, grpc_server_registry):
+    create_run(
+        instance,
+        run_id="bad-pri-run",
+        status=PipelineRunStatus.QUEUED,
+        tags={PRIORITY_TAG: "foobar"},
+    )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["bad-pri-run"]
+
+
+def test_tag_limits(instance, grpc_server_registry):
+    create_run(
+        instance,
+        run_id="tiny-1",
+        status=PipelineRunStatus.QUEUED,
+        tags={"database": "tiny"},
+    )
+    create_run(
+        instance,
+        run_id="tiny-2",
+        status=PipelineRunStatus.QUEUED,
+        tags={"database": "tiny"},
+    )
+    create_run(
+        instance,
+        run_id="large-1",
+        status=PipelineRunStatus.QUEUED,
+        tags={"database": "large"},
+    )
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+        tag_concurrency_limits=[{"key": "database", "value": "tiny", "limit": 1}],
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["tiny-1", "large-1"]
+
+
+def test_multiple_tag_limits(instance, grpc_server_registry):
+    create_run(
+        instance,
+        run_id="run-1",
+        status=PipelineRunStatus.QUEUED,
+        tags={"database": "tiny", "user": "johann"},
+    )
+    create_run(
+        instance,
+        run_id="run-2",
+        status=PipelineRunStatus.QUEUED,
+        tags={"database": "tiny"},
+    )
+    create_run(
+        instance,
+        run_id="run-3",
+        status=PipelineRunStatus.QUEUED,
+        tags={"user": "johann"},
+    )
+    create_run(
+        instance,
+        run_id="run-4",
+        status=PipelineRunStatus.QUEUED,
+        tags={"user": "johann"},
+    )
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+        tag_concurrency_limits=[
+            {"key": "database", "value": "tiny", "limit": 1},
+            {"key": "user", "value": "johann", "limit": 2},
+        ],
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["run-1", "run-3"]
+
+
+def test_overlapping_tag_limits(instance, grpc_server_registry):
+    create_run(
+        instance,
+        run_id="run-1",
+        status=PipelineRunStatus.QUEUED,
+        tags={"foo": "bar"},
+    )
+    create_run(
+        instance,
+        run_id="run-2",
+        status=PipelineRunStatus.QUEUED,
+        tags={"foo": "bar"},
+    )
+    create_run(
+        instance,
+        run_id="run-3",
+        status=PipelineRunStatus.QUEUED,
+        tags={"foo": "other"},
+    )
+    create_run(
+        instance,
+        run_id="run-4",
+        status=PipelineRunStatus.QUEUED,
+        tags={"foo": "other"},
+    )
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+        tag_concurrency_limits=[
+            {"key": "foo", "limit": 2},
+            {"key": "foo", "value": "bar", "limit": 1},
+        ],
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["run-1", "run-3"]
+
+
+def test_location_handles_reused(instance, monkeypatch, grpc_server_registry):
+    """
+    verifies that only one repository location is created when two queued runs from the same
+    location are dequeued in the same iteration
+    """
+
+    create_run(
+        instance,
+        run_id="queued-run",
+        status=PipelineRunStatus.QUEUED,
+    )
+
+    create_run(
+        instance,
+        run_id="queued-run-2",
+        status=PipelineRunStatus.QUEUED,
+    )
+
+    original_method = GrpcServerRepositoryLocationHandle.__init__
+
+    method_calls = []
+
+    def mocked_handle_init(
+        self,
+        origin,
+        host=None,
+        port=None,
+        socket=None,
+        server_id=None,
+        heartbeat=False,
+        watch_server=True,
+    ):
+        method_calls.append(origin)
+        return original_method(self, origin, host, port, socket, server_id, heartbeat, watch_server)
+
+    monkeypatch.setattr(
+        GrpcServerRepositoryLocationHandle,
+        "__init__",
+        mocked_handle_init,
+    )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+    )
+    list(coordinator.run_iteration(instance, grpc_server_registry))
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["queued-run", "queued-run-2"]
+    assert len(method_calls) == 1
+
+
+def test_skip_error_runs(instance, grpc_server_registry):
+
+    create_invalid_run(
+        instance,
+        run_id="bad-run",
+        status=PipelineRunStatus.QUEUED,
+    )
+
+    create_run(
+        instance,
+        run_id="good-run",
+        status=PipelineRunStatus.QUEUED,
+    )
+
+    coordinator = QueuedRunCoordinatorDaemon(
+        interval_seconds=5,
+        max_concurrent_runs=10,
+    )
+    errors = [
+        error for error in list(coordinator.run_iteration(instance, grpc_server_registry)) if error
+    ]
+
+    assert len(errors) == 1
+    assert "ModuleNotFoundError" in errors[0].message
+
+    assert get_run_ids(instance.run_launcher.queue()) == ["good-run"]
+    assert instance.get_run_by_id("bad-run").status == PipelineRunStatus.FAILURE

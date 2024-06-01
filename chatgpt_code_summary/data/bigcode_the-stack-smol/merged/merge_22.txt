@@ -1,0 +1,23 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code defines a class `Solution` with a method `coinChange` that calculates the minimum number of coins needed to make up a given amount. It uses dynamic programming to iterate through each possible amount and coin denomination to find the optimal solution. The `res` list stores the minimum number of coins needed for each amount. The algorithm iterates through each amount and each coin denomination to update `res` with the minimum number of coins required. If the final result exceeds the given amount, it returns `-1`, otherwise, it returns the minimum number of coins needed for the amount. } [/INST] { class Solution:
+    def coinChange(self, coins, amount):
+        """
+        :type coins: List[int]
+        :type amount: int
+        :rtype: int
+        """
+#         max value taken as amount+1 because in worst case, it can be amount - when denoms of only 1
+        res = [amount+1]*(amount+1)
+        res[0] = 0
+        for i in range(1, amount+1):
+            for j in coins:
+                if j <= i:
+                    res[i] = min(res[i], res[i-j] + 1)
+
+        if res[amount] > amount:
+            return -1
+        else:
+            return res[amount] }
+</s>

@@ -1,0 +1,168 @@
+# -*- coding: utf-8 -*-
+
+import json
+import datetime
+
+class JobHeader:
+    """Represents a row from the callout."""
+
+    def __init__(self, raw_data):
+        self.attributes = {
+            "contractor": json.dumps(raw_data[0]),
+            "job_name": json.dumps(raw_data[1]),
+            "is_dayshift": json.dumps(int(raw_data[3] == "Days")),
+            "job_id": json.dumps(int(raw_data[4]))
+        }
+
+        self.contractor = raw_data[0]
+        self.jobName = raw_data[1]
+        self.startDate = raw_data[2]
+        self.shift = raw_data[3]
+        self.id = raw_data[4]
+
+    def add_data(self, pop_data):
+        print("popData for id {0}".format(self.id))
+
+        if self.id != pop_data.id:
+            print("ID mismatch...")
+            return
+
+
+class JobData:
+    TIME_TAG = "start_time"
+    DATE_TAG = "start_date"
+    DATE_TIME_TAG = "date_time"
+
+    def __init__(self, raw_data):
+        self.lineMatches = {"Work Type:": "work_type",
+                            "Hours:": "hours",
+                            "Start Date:": "start_date",
+                            "Start Time:": "start_time",
+                            "Duration:": "duration",
+                            "Accommodation:": "accommodation",
+                            "Open To:": "open_to",
+                            "Comments:": "comments",
+                            "Drug Testing Info:": "drug_testing"}
+
+        self.nameHireTag = "Name Hired:"
+        # 2 spaces typo
+        self.manpowerTag = "Manpower  Requirements:"
+
+        self.attribute_dictionary = {}
+        self.manpower = {}
+        self.name_hires = {}
+
+        skip_line = False
+        for i, row in enumerate(raw_data):
+            if row.has_attr("bgcolor"):
+                continue
+
+            if skip_line:
+                skip_line = False
+                continue
+
+            stripped = row.text.strip()
+
+            if not row.find("b"):
+                # print("Element {0} is not bold enough for my needs.".format(row))
+                continue
+
+            if self.check_line_match(i, stripped, raw_data):
+                skip_line = True
+                continue
+
+            if "Job#" in stripped:
+                self.id = stripped.split(u'\xa0')[-1]
+                print("Set Job# to {0}".format(self.id))
+                continue
+
+            if self.manpowerTag in stripped:
+                self.manpower = self.get_multi_line(self.manpowerTag, i, raw_data)
+                continue
+
+            if self.nameHireTag in stripped:
+                self.name_hires = self.get_multi_line(self.nameHireTag, i, raw_data)
+                continue
+
+            # # parse checkboxes
+            # inputs = row.find_all("input")
+            # if inputs:
+            #     self.attrDic["Shift:"] = "Days" if self.parse_checkbox(row.find_all("b")) else "Nights"
+            #     print("Set Shift: to {0}".format(self.attrDic["Shift:"]))
+            #     continue
+
+            print(repr(stripped))
+
+        self.attribute_dictionary["manpower"] = json.dumps(self.manpower)
+        self.attribute_dictionary["name_hires"] = json.dumps(self.name_hires)
+
+        date_split = self.attribute_dictionary[self.DATE_TAG].replace('\"', '').split('/')
+        time_string = self.attribute_dictionary[self.TIME_TAG].replace('\"', '') + ":00"
+        self.attribute_dictionary[self.DATE_TIME_TAG] = "{0}-{1}-{2} {3}".format(
+            date_split[2], date_split[0], date_split[1], time_string)
+
+        del self.attribute_dictionary[self.DATE_TAG]
+        del self.attribute_dictionary[self.TIME_TAG]
+
+        print("dateTime set to: {0}".format(repr(datetime)))
+
+    def check_line_match(self, index, stripped, data_rows):
+        """Find lines matching stripped from lineMatchKeys and set value to immediately following row"""
+
+        for key, value in self.lineMatches.items():
+            if stripped == key:
+                next_row = data_rows[index + 1]
+                if next_row.find_all("b"):
+                    print("Next row was bold element: {0}.  Skipping...".format(next_row))
+                    return False
+
+                next_row_stripped = next_row.text.strip()
+                if next_row_stripped in self.lineMatches:
+                    print("Next row was {0} and is in lineMatchKeys, skipping...".format(next_row_stripped))
+                    return False
+
+                self.attribute_dictionary[value] = json.dumps(next_row_stripped)
+                print("Set {0} to {1}".format(value, self.attribute_dictionary[value]))
+                del self.lineMatches[key]
+                return True
+
+        return False
+
+    @classmethod
+    def get_multi_line(cls, match, index, data_rows):
+        attr_list = []
+        while True:
+            index += 1
+
+            if index >= len(data_rows):
+                break
+
+            next_row = data_rows[index]
+
+            if next_row.find("b"):
+                break
+
+            if next_row.find("tr"):
+                print("Skipping td containing trs")
+                continue
+
+            attr_list.append(next_row.text.strip().replace(u'\xa0', ' '))
+
+        attr_dic = {}
+
+        i = 0
+        while i + 1 < len(attr_list):
+            attr_dic[attr_list[i]] = attr_list[i + 1]
+            i += 2
+        print("Set '{0}' to dic:".format(match))
+        print(repr(attr_dic))
+
+        return attr_dic
+
+    @classmethod
+    def parse_checkbox(cls, bold_elements):
+        for bold in bold_elements:
+            if "Days" in bold.text.strip():
+                input_el = bold.find("input")
+                if input_el:
+                    return input_el.has_attr("checked")

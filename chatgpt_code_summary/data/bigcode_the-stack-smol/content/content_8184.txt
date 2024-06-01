@@ -1,0 +1,34 @@
+# for value in range(1,9):
+#     print(' * ' * (9 - value))
+# print("---------------------------")
+
+# for i in range(5):
+#     for j in range(i+1):
+#         print(" O ", end="")
+#     print()
+# print("---------------------------")
+
+# for i in range(5):
+#     for s in range(i):
+#        print(" ", end="")
+#     for j in range(i, 5):
+#         print(" O", end="")
+#     print()
+
+# print("---------------------------")
+# for i in range(5):
+#         for j in range(i, 5):
+#             print(end="O ")
+#         print()
+# print("---------------------------")
+
+
+for i in range(1, 6):
+    print(i, end=" ")
+    m = 4
+    k = i + m
+    for j in range(1, i):
+        print(k, end=" ")
+        m = m - 1
+        k = k + m
+    print()

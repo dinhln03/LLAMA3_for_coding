@@ -1,0 +1,23 @@
+from data_processing_calibration import DataProcessingCalibration
+
+
+if __name__ == "__main__":
+    # Start processing
+    dp_ST = DataProcessingCalibration()
+    print("Initialize is successful.")
+
+    # Open .csv file with data
+    data_from_sensor = dp_ST.openFile('C://static_test.csv')
+    print("Data was got.")
+
+    # Filter and processing, and convert data in Euler angles
+    data_orientation_ST = dp_ST.processFile(data_from_sensor)
+    print("Data was converted.")
+
+    # Use method of Allan Variation for data
+    tau_roll, ad_roll, tau_pitch, ad_pitch, tau_yaw, ad_yaw = dp_ST.deviationAllan(data_orientation_ST, rate=31)
+    print("Using method of Allan Variation was successful.")
+
+    # Create plots
+    dp_ST.plotDataFromFile(data_orientation_ST, tau_roll, ad_roll, tau_pitch, ad_pitch, tau_yaw, ad_yaw)
+    print("Plots creating was successful.")

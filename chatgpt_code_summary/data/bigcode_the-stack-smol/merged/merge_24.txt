@@ -1,0 +1,44 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code snippet demonstrates the usage of a function decorator named `interpolate_doc` for generating documentation. 
+
+- The `interpolate_doc` decorator interpolates specific variables and a class attribute into the function's docstring before the function is defined.
+- A docstring format includes placeholders like `{interpolate_example.foo}`, `{bar}`, and `{Foo!K}` to insert the values of the `foo` variable, `bar` variable, and the special class attribute `__kw__` from class `Foo` into the function `func`'s docstring.
+- There is a demonstration of catching an error when a docstring is improperly formatted within the `bad_doc` function. } [/INST] { from interpolate import interpolate_doc
+
+
+foo = """
+    hello
+    world
+"""
+bar = "foo bar\nbaz"
+
+
+class Foo:
+    # cf matplotlib's kwdoc.
+    __kw__ = "the kw of foo"
+
+
+@interpolate_doc
+def func():
+    """
+    this is a docstring
+
+    {interpolate_example.foo}
+
+        {bar}
+
+    {Foo!K}
+    """
+
+
+try:
+    @interpolate_doc
+    def bad_doc():
+        """
+        fields {must} be preceded by whitespace
+        """
+except ValueError:
+    print("error correctly caught") }
+</s>

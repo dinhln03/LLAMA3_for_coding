@@ -1,0 +1,29 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ These Python classes define custom exceptions that can be raised in specific scenarios. 
+
+1. `DirectionNotDetermined`: Raised when the hand does not move in only one direction, making it impossible to determine the movement direction.
+   
+2. `ConfigError`: Indicates a possible syntax error in the configuration.
+   
+3. `GestureNotDetermined`: Raised when a gesture does not match any of the registered gestures. 
+
+Each class initializes with a default message and inherits from the `BaseException` class. When raising these exceptions, the provided messages can help in identifying the specific issue encountered in the program. } [/INST] { class DirectionNotDetermined(BaseException):
+    
+    def __init__(self, message="Hand did not move in only one direction. Direction of movement cannot be determined."):
+        self.message = message
+        super().__init__(self.message)
+
+class ConfigError(BaseException):
+
+    def __init__(self, message="Possible error in syntax of config."):
+        self.message = message
+        super().__init__(self.message)
+        
+class GestureNotDetermined(BaseException):
+
+    def __init__(self, message="The Gesture did not match with any registered gestures"):
+        self.message = message
+        super().__init__(self.message) }
+</s>

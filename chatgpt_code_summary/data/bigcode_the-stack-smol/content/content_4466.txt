@@ -1,0 +1,36 @@
+playlists = """https://www.youtube.com/playlist?list=PLWOxuTkHhAq70Q4ZF1EcsRaW1uHs6zygL
+https://www.youtube.com/playlist?list=PLObmubSxSaRKdWB3BoyndydqDGkgbMlbC
+https://www.youtube.com/playlist?list=PLxN__ARc_RfpOAdnB14rBSF6xDHDySNE4
+https://www.youtube.com/playlist?list=PLxN__ARc_Rfrsee6JJkU198Fa0rxjbTgQ
+https://www.youtube.com/playlist?list=PLxN__ARc_Rfr3AipUqXTqjbL990_pUBCd
+https://www.youtube.com/playlist?list=PLxN__ARc_RfrYYGV0uN9G79ASYNYHN5bi
+https://www.youtube.com/playlist?list=PLnyIUJZrQfakO0xkKPxceT4rOhzwd9NMU
+https://www.youtube.com/playlist?list=PLnyIUJZrQfam-mBL4Wq3qncy68DfeI_Op
+https://www.youtube.com/playlist?list=PLnyIUJZrQfalS8yK1K7NGWbZXiY6nnDxg
+https://www.youtube.com/playlist?list=PLnyIUJZrQfaluNlLUmbGoDJUUas4T7W_C
+https://www.youtube.com/playlist?list=PLjqsQycWIhFfKtcQlGgnGDQuUbUjSgqrB
+https://www.youtube.com/playlist?list=PLaK1z6C61upcg-fWsHoiWtDwsKP7Ti23r
+https://www.youtube.com/playlist?list=PLZ7Ye5d76T7j9l2BONR05FDyUaczK3NWP
+https://www.youtube.com/playlist?list=PLZ7Ye5d76T7gzXf6-_QdT3qRplcIODcs0
+https://www.youtube.com/playlist?list=PLZ7Ye5d76T7j-QdeSLenweE_E_w2gWGDd
+https://www.youtube.com/playlist?list=PLcfHpRUOJGcOSIYV7UX0Fxb3N9aYiIeIX
+https://www.youtube.com/playlist?list=PLcfHpRUOJGcN3QcWyDJ9D6e_BDmkmRoaX
+https://www.youtube.com/playlist?list=PLcfHpRUOJGcN_q9JvR09_Wy4Yhl_9eG6r
+https://www.youtube.com/playlist?list=PL3R3ezbvlgNpyAxZzQ3vEIO3R6XYzX-Oa
+https://www.youtube.com/playlist?list=PLTufViCW8MklAol1CKXYFmWB-6LMS5cLS
+https://www.youtube.com/playlist?list=PL2kIyfRWfPs6UC--1IqcxcPSfXsNyGFiK
+https://www.youtube.com/playlist?list=PLSQCEkZEhfq9mra1sy7vI4Ra2kgPslVaX
+https://www.youtube.com/playlist?list=PL1ad0PFSaS7c0k5guh90oS-7csla07Or1
+https://www.youtube.com/playlist?list=PLy_Iceng2X1A8MwZ8hWC9ITqz0fYU3Mau
+https://www.youtube.com/playlist?list=PLTufViCW8MknjUllPTnq5PtRlZTAJ2a-9
+https://www.youtube.com/playlist?list=PLTufViCW8MknQc1Dgth6b0CyFhXWClDJs
+https://www.youtube.com/playlist?list=PLTufViCW8MkkAnqcreRA78ytpxuf2r8ac
+https://www.youtube.com/playlist?list=PLttdYH6hzg6fmQVkawJWxBKPRGVxvm11I
+https://www.youtube.com/playlist?list=PLAmqhEyEmobA1M3t4XjlAQthTRToIYku4
+https://www.youtube.com/playlist?list=PLAmqhEyEmobBAo9FR9_8JRt9ykj2k92-e
+https://www.youtube.com/playlist?list=PLJJd8CUjfjZqb9tGMTfAYPfVcO-yMSiV3
+https://www.youtube.com/playlist?list=PLJJd8CUjfjZqLKBBP0D_jqtG4OPYTTByR
+https://www.youtube.com/playlist?list=PLAmqhEyEmobDzbAqxuYjpjDLZFnhws7no
+https://www.youtube.com/playlist?list=PLgE5g9Ln1vGHGjsDr-4t-Jsw4C1mjWIQV"""
+
+playlists = playlists.split("\n")

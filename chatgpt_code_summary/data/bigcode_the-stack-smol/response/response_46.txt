@@ -1,0 +1,1 @@
+This Python script defines a function named `get_db_config` that reads a JSON configuration file named `config.json`. The function opens the file, reads its contents using the `json.loads` method, and returns the data as a dictionary. This code snippet enables the user to retrieve database configuration settings stored in a JSON file in a structured format.

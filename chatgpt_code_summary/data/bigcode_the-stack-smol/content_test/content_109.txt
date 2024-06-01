@@ -1,0 +1,77 @@
+import os
+import copy
+import numpy as np
+import click
+from typing import List, Optional
+import torch
+import pickle
+
+def extract_conv_names(model):
+    model_names = list(name for name in model.keys())
+
+    return model_names
+
+def blend_models(low, high, model_res, level):
+
+    levels =  [x for x in range(level)]
+    
+    low_names = extract_conv_names(low)
+    high_names = extract_conv_names(high)
+
+    assert all((x == y for x, y in zip(low_names, high_names)))
+
+    #start with lower model and add weights above
+    model_out = copy.deepcopy(low)
+
+    for name in high.keys():
+
+        if any(f'convs.{lvl}' in name for lvl in levels):
+            continue
+        if any(f'to_rgbs.{lvl // 2}' in name for lvl in levels):
+            continue
+        if any(f'noises.noise_{lvl}' in name for lvl in levels):
+            continue
+        if ('style' in name):
+            continue
+        if ('conv1' in name):
+            continue
+        if ('to_rgb1' in name):
+            continue
+        if ('input.input' in name):
+            continue
+        
+        # print(name)
+        model_out[name] = high[name].clone()
+    
+    return model_out
+
+#----------------------------------------------------------------------------
+
+@click.command()
+@click.pass_context
+@click.option('--lower_res_pkl', help='Network pickle filename for lower resolutions', required=True)
+@click.option('--higher_res_pkl', help='Network pickle filename for higher resolutions', required=True)
+@click.option('--output_path','out', help='Network pickle filepath for output', default='./blended.pt')
+@click.option('--model_res', type=int, help='Output resolution of model (likely 1024, 512, or 256)', default=64, show_default=True)
+@click.option('--split_lvl', type=int, help='Resolution to split model weights', default=4, show_default=True)
+
+def create_blended_model(
+    ctx: click.Context,
+    lower_res_pkl: str,
+    higher_res_pkl: str,
+    model_res: Optional[int],
+    split_lvl: Optional[int],
+    out: Optional[str],
+):
+
+    lo_G_ema = torch.load(lower_res_pkl, map_location=torch.device('cpu'))['g_ema']
+    hi = torch.load(higher_res_pkl, map_location=torch.device('cpu'))['g_ema']
+    model_out = blend_models(lo_G_ema, hi, model_res, split_lvl)
+    torch.save(model_out, out)
+
+#----------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    create_blended_model() # pylint: disable=no-value-for-parameter
+
+#----------------------------------------------------------------------------

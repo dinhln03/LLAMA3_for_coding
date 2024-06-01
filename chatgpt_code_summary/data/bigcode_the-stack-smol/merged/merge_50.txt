@@ -1,0 +1,52 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ The Python code defines a parser to extract information from Eve Online asset lists. The `parse_assets` function takes a string of asset list lines as input. The regular expression `ASSET_LIST_RE` is used to match and extract various asset details like name, quantity, group, category, size, slot, volume, meta level, and tech level from each line. The function processes the lines using the regex pattern, converts the quantity to an integer, and returns a list of dictionaries containing the extracted asset information. Any lines that do not match the pattern are returned as a list of 'bad lines.' } [/INST] { """
+eveparser.parsers.assets
+~~~~~~~~~~~~~~~~~~~~~~~
+Parse eve online asset lists. This also invludes inventory listings.
+
+"""
+import re
+
+from eveparser.utils import regex_match_lines, f_int
+
+ASSET_LIST_RE = re.compile(r"""^([\S ]*)                           # name
+                                \t([\d,'\.]*)                      # quantity
+                                (\t([\S ]*))?                      # group
+                                (\t([\S ]*))?                      # category
+                                (\t(XLarge|Large|Medium|Small|))?  # size
+                                (\t(High|Medium|Low|Rigs|[\d ]*))? # slot
+                                (\t([\d ,\.]* m3))?                # volume
+                                (\t([\d]+|))?                      # meta level
+                                (\t([\d]+|))?$                     # tech level
+                               """, re.X)
+
+
+def parse_assets(lines):
+    """ Parse asset list
+
+    :param string paste_string: An asset list string
+    """
+    matches, bad_lines = regex_match_lines(ASSET_LIST_RE, lines)
+
+    result = [{'name': name,
+               'quantity': f_int(quantity) or 1,
+               'group': group,
+               'category': category,
+               'size': size,
+               'slot': slot,
+               'volume': volume,
+               'meta_level': meta_level,
+               'tech_level': tech_level}
+              for (name,
+                   quantity,
+                   _, group,
+                   _, category,
+                   _, size,
+                   _, slot,
+                   _, volume,
+                   _, meta_level,
+                   _, tech_level) in matches]
+    return result, bad_lines }
+</s>

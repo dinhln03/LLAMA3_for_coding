@@ -1,0 +1,17 @@
+'''
+Created on Sep 3, 2012
+ 
+@author: Daniel J. Rivers
+'''
+from DataAccess.TableData import TableData
+from DataAccess.TableHandler import TableHandler
+class EpisodeHandler( TableHandler ):
+    pass
+
+
+class Episode( TableData ):
+
+    def __init__( self ):
+        self.columnNames = [ ( "SEASON_ID", "INTEGER" ), ( "EPISODE_NUM", "INTEGER" ), ( "FILE", "TEXT" ), ( "TOD", "TEXT" ) ]
+        self.tableName = "EPISODE"
+        self.where = 1

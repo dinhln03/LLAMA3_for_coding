@@ -1,0 +1,96 @@
+##########################################################################
+#
+#  Copyright (c) 2017, Image Engine Design Inc. All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are
+#  met:
+#
+#      * Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#      * Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials provided with
+#        the distribution.
+#
+#      * Neither the name of John Haddon nor the names of
+#        any other contributors to this software may be used to endorse or
+#        promote products derived from this software without specific prior
+#        written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+#  IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+#  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+#  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+##########################################################################
+
+import os
+import sys
+
+import GafferUI
+
+import Qt
+from Qt import QtCore
+from Qt import QtGui
+from Qt import QtWidgets
+
+def joinEdges( listContainer ) :
+
+	if listContainer.orientation() == listContainer.Orientation.Horizontal :
+		lowProperty = "gafferFlatLeft"
+		highProperty = "gafferFlatRight"
+	else :
+		lowProperty = "gafferFlatTop"
+		highProperty = "gafferFlatBottom"
+
+	visibleWidgets = [ w for w in listContainer if w.getVisible() ]
+	l = len( visibleWidgets )
+	for i in range( 0, l ) :
+		visibleWidgets[i]._qtWidget().setProperty( lowProperty, i > 0 )
+		visibleWidgets[i]._qtWidget().setProperty( highProperty, i < l - 1 )
+
+def grab( widget, imagePath ) :
+
+	GafferUI.EventLoop.waitForIdle()
+
+	imageDir = os.path.dirname( imagePath )
+	if imageDir and not os.path.isdir( imageDir ) :
+		os.makedirs( imageDir )
+
+	if Qt.__binding__ in ( "PySide2", "PyQt5" ) :
+		# Qt 5
+		screen = QtWidgets.QApplication.primaryScreen()
+		windowHandle = widget._qtWidget().windowHandle()
+		if windowHandle :
+			screen = windowHandle.screen()
+
+		pixmap = screen.grabWindow( long( widget._qtWidget().winId() ) )
+
+		if sys.platform == "darwin" and pixmap.size() == screen.size() * screen.devicePixelRatio() :
+			# A bug means that the entire screen will have been captured,
+			# not just the widget we requested. Copy out just the widget.
+			topLeft = widget._qtWidget().mapToGlobal( QtCore.QPoint( 0, 0 ) )
+			bottomRight = widget._qtWidget().mapToGlobal( QtCore.QPoint( widget._qtWidget().width(), widget._qtWidget().height() ) )
+			size = bottomRight - topLeft
+			pixmap = pixmap.copy(
+				QtCore.QRect(
+					topLeft * screen.devicePixelRatio(),
+					QtCore.QSize( size.x(), size.y() ) * screen.devicePixelRatio()
+				)
+			)
+
+	else :
+		# Qt 4
+		pixmap = QtGui.QPixmap.grabWindow( long( widget._qtWidget().winId() ) )
+
+	pixmap.save( imagePath )

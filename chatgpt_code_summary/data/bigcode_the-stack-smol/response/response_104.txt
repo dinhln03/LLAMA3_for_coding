@@ -1,0 +1,8 @@
+This Python script contains benchmarks for the TensorFlow `tf.data.experimental.parallel_interleave()` function. It creates fake datasets to mimic performance from a remote storage source. The script measures the time taken to iterate over elements in different interleaving scenarios.
+
+1. The `_make_fake_dataset_fn()` function creates a dataset with varying element production times (1s vs. 1ms).
+2. `ParallelInterleaveBenchmark` class defines benchmarks for sequential interleave, parallel interleave without autotuning, and parallel interleave with autotuning.
+3. The benchmarks measure the time taken to process elements in different interleaving setups.
+4. To run the benchmarks, execute the script as the main program.
+
+The code benchmarks the parallel interleaving methods in TensorFlow using synthetic datasets.

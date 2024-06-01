@@ -1,0 +1,64 @@
+# -*- coding: utf-8 -*-
+import xlrd
+import pandas as pd
+import numpy as np
+
+mirna_sim_path = '../data/miRNA_sim.xlsx'
+disease_sim_path = '../data/disease_sim.xlsx'
+mirna_disease_ass_path = '../data/miRNA_disease.csv'
+mirna_data_dict_path = "../data/mirna_data_dict.npy"
+disease_data_dict_path = "../data/disease_data_dict.npy"
+mirna_data_dict = np.load(mirna_data_dict_path, allow_pickle=True).item()
+disease_data_dict = np.load(disease_data_dict_path, allow_pickle=True).item()
+
+
+def get_mirna_sim():
+    data = xlrd.open_workbook(mirna_sim_path)
+    table = data.sheets()[0]
+    nrows = table.nrows
+    mirna_sim_dict = {}
+    for cnt in range(nrows):
+        value = table.row_values(cnt)
+        mirna_sim_dict[cnt+1] = value
+    return mirna_sim_dict
+
+
+def get_disease_sim():
+    data = xlrd.open_workbook(disease_sim_path)
+    table = data.sheets()[0]
+    nrows = table.nrows
+    disease_sim_dict = {}
+    for cnt in range(nrows):
+        value = table.row_values(cnt)
+
+        disease_sim_dict[cnt+1] = value
+    return disease_sim_dict
+
+
+def get_data(data_path):
+    mm_sim_dict = get_mirna_sim()
+    dd_sim_dict = get_disease_sim()
+    total_sample = []
+    Label = []
+    with open(data_path) as f:
+        for line in f:
+            item = line.strip().split('\t')
+            mirna = int(item[0])
+            disease = int(item[1])
+            label = int(item[2])
+            Label.append(label)
+            mirna_ver = mm_sim_dict[mirna] + mirna_data_dict[mirna].tolist()
+            disease_ver = dd_sim_dict[disease] + disease_data_dict[disease].tolist()
+            ver = mirna_ver + disease_ver
+            total_sample.append(ver)
+    total_sample.reverse()
+    Label.reverse()
+    return total_sample, Label
+
+
+def get_train_data():
+    data_path = '../data/train_data.txt'
+    total_sample, label = get_data(data_path)
+    return total_sample, label
+
+

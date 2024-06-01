@@ -1,0 +1,262 @@
+
+# Purpose: Calculate hydrological fluxes in the canopy, unsaturated and saturated sub-domains
+# Record of revisions:
+# Date      Programmer      Description of change
+# ========  =============   =====================
+# 09-2020   A. Elkouk       Original code
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Parametrization for the fluxes in the vegetation canopy
+# ----------------------------------------------------------------------------------------------------------------------
+
+def calc_wetted_fraction(canopyStore, canopyStore_max, gamma):
+    """ Calculate the wetted fraction of the canopy
+
+    Parameters
+    ----------
+    canopyStore : int or float
+        Canopy Interception storage [mm]
+    canopyStore_max : int or float
+        Maximum non-drainable canopy interception storage [mm]
+    gamma : float
+        Parameter to account for the non-linearity in the wetted fraction of the canopy
+
+    Returns
+    -------
+    wetFrac: float
+        Wetted fraction of the canopy
+    """
+
+    if canopyStore < canopyStore_max:
+        wetFrac = (canopyStore / canopyStore_max) ** gamma
+    else:
+        wetFrac = 1.0
+
+    return wetFrac
+
+
+def calc_canopy_evaporation(pet, wetFrac):
+    """ Calculate the evaporation from canopy interception storage
+
+    Parameters
+    ----------
+    pet : int or float
+        Potential evapotranspiration [mm day^-1]
+    wetFrac : float
+        Wetted fraction of the canopy
+
+    Returns
+    -------
+    canopyEvap: float
+        Evaporation from canopy interception storage [mm day^-1]
+    """
+
+    canopyEvap = pet * wetFrac
+
+    return canopyEvap
+
+
+def calc_throughfall_flux(precip, canopyStore, canopyStore_max):
+    """ Calculate the throughfall flux from canopy interception storage
+
+    Parameters
+    ----------
+    precip : int or float
+        Precipitation flux [mm day^-1]
+    canopyStore : int or float
+        Canopy Interception storage [mm]
+    canopyStore_max : int or float
+        Maximum non-drainable canopy interception storage [mm]
+
+    Returns
+    -------
+    throughfall : int or float
+        Throughfall flux [mm day^-1]
+    """
+
+    if canopyStore < canopyStore_max:
+        throughfall = precip * (canopyStore / canopyStore_max)
+    else:
+        throughfall = precip
+
+    return throughfall
+
+
+def calc_canopy_drainage_flux(canopyStore, canopyStore_max, k_can):
+    """ Calculate the canopy drainage flux from canopy interception storage
+
+    Parameters
+    ----------
+    canopyStore : int or float
+        Canopy Interception storage [mm]
+    canopyStore_max : int or float
+        Maximum non-drainable canopy interception storage [mm]
+    k_can: float
+        Canopy drainage coecient [day^-1]
+
+    Returns
+    -------
+    canopyDrain : int or float
+        Canopy drainage flux [mm day^-1]
+    """
+
+    if canopyStore < canopyStore_max:
+        canopyDrain = 0.0
+    else:
+        canopyDrain = k_can * (canopyStore - canopyStore_max)
+
+    return canopyDrain
+
+
+def calc_precipitation_excess(throughfall, canopyDrain):
+    """ Calculate excess precipitation (the sum of throughfall and canopy drainage)
+
+    Parameters
+    ----------
+    throughfall : int or float
+        Throughfall flux [mm day^-1]
+    canopyDrain : int or float
+        Canopy drainage flux [mm day^-1]
+    Returns
+    -------
+    precipExcess : int or float
+        Excess precipitation [mm day^-1]
+    """
+
+    precipExcess = throughfall + canopyDrain
+
+    return precipExcess
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Parametrization for the fluxes in the unsaturated zone
+# ----------------------------------------------------------------------------------------------------------------------
+
+def calc_saturated_fraction(unsatStore, unsatStore_max, alpha):
+    """ Calculate the saturated fraction of the unsaturated zone
+
+    Parameters
+    ----------
+    unsatStore : int or float
+        Storage in the unsaturated zone [mm]
+    unsatStore_max : int or float
+        Maximum storage in the unsaturated zone [mm]
+    alpha : float
+        Parameter to account for the non-linearity in the variable source area for saturation-excess runoff
+
+    Returns
+    -------
+    satFrac: float
+        Saturated fraction of the unsaturated zone
+    """
+
+    if unsatStore < unsatStore_max:
+        satFrac = 1 - (1 - (unsatStore / unsatStore_max)) ** alpha
+    else:
+        satFrac = 1
+
+    return satFrac
+
+
+def calc_unsaturated_evaporation(pet, unsatStore, fieldCap, wetFrac):
+    """ Calculate evaporation from the unsaturated zone
+
+    Parameters
+    ----------
+    pet : int or float
+        Potential evapotranspiration [mm day^-1]
+    unsatStore : int or float
+        Storage in the unsaturated zone [mm]
+    fieldCap : int or float
+        Field capacity [mm]
+    wetFrac : float
+        Wetted fraction of the canopy
+
+    Returns
+    -------
+    unsatEvap : float
+        Evaporation from the unsaturated zone [mm day^-1]
+    """
+
+    if unsatStore < fieldCap:
+        unsatEvap = pet * (unsatStore / fieldCap) * (1 - wetFrac)
+    else:
+        unsatEvap = pet * (1 - wetFrac)
+
+    return unsatEvap
+
+
+def calc_overland_flow(precipExcess, satFrac):
+    """ Calculate overland flow (surface runoff)
+
+    Parameters
+    ----------
+    precipExcess : int or float
+        Excess precipitation [mm day^-1]
+    satFrac : float
+        Saturated fraction of the unsaturated zone
+    Returns
+    -------
+    overlandFlow : float
+        Overland flow (surface runoff) [mm day^-1]
+    """
+
+    overlandFlow = precipExcess * satFrac
+
+    return overlandFlow
+
+
+def calc_percolation_flux(unsatStore, unsatStore_max, fieldCap, k_sat, beta):
+    """ Calculate the percolation flux from the unsaturated to the saturated zone
+
+    Parameters
+    ----------
+    unsatStore : int or float
+        Storage in the unsaturated zone [mm]
+    unsatStore_max : int or float
+        Maximum storage in the unsaturated zone [mm]
+    fieldCap : int or float
+        Field capacity [mm]
+    k_sat : int or float
+        Maximum percolation rate [mm day^-1]
+    beta : int or float
+        Parameter to account for percolation non-linearity
+
+    Returns
+    -------
+    percolation : int or float
+        Percolation flux [mm day^-1]
+    """
+
+    if unsatStore < fieldCap:
+        percolation = 0.0
+    else:
+        percolation = k_sat * ((unsatStore - fieldCap) / (unsatStore_max - fieldCap)) ** beta
+
+    return percolation
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Parametrization for the fluxes in the saturated zone
+# ----------------------------------------------------------------------------------------------------------------------
+
+def calc_baseflow(satStore, k_sz):
+    """ Calculate baseflow from the saturated zone
+
+    Parameters
+    ----------
+    satStore : int or float
+        Storage in the saturated zone [mm]
+    k_sz : float
+        Runoff coefficient for the saturated zone [day^-1]
+
+    Returns
+    -------
+    baseflow : float
+        Baseflow from the saturated zone [mm day^-1]
+    """
+
+    baseflow = satStore * k_sz
+
+    return baseflow

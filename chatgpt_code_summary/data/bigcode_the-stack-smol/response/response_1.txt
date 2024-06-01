@@ -1,0 +1,5 @@
+This Python script defines a training process for a graph convolutional network model using NHGAT (Neighborhood-aware Hierarchical Graph Attentive Model with Generative Adversarial Network) architecture. The script reads a configuration file specifying model parameters, loads the required data, preprocesses the graph data, creates the model, defines an optimizer, and trains the model over multiple epochs.
+
+During training, the script calculates loss, updates model weights, and evaluates the model performance using ROC (Receiver Operating Characteristic) score and Average Precision score on a validation set. The best model based on validation performance is saved. Finally, the trained model is evaluated on a test set and corresponding ROC and AP scores are reported.
+
+To use the script, create a configuration file (config.cfg) with specified parameters, ensure all required dependencies are installed, and run the script to train the NHGAT model on the provided dataset.

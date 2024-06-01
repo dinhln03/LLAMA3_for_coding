@@ -1,0 +1,5 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This code snippet imports the `Lingloss` module from the `lingloss` package in Python. It allows access to the functionalities provided by the `Lingloss` class, which is likely related to linguistic or language processing tasks. By importing this module, you can utilize the features and methods defined within the `Lingloss` class to perform various linguistic analyses or manipulations in your Python script. Make sure the `lingloss` package is installed in your Python environment before using this code. } [/INST] { from lingloss import Lingloss }
+</s>

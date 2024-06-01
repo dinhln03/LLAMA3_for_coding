@@ -1,0 +1,38 @@
+from rest_framework import serializers
+
+from gestion.models.providerOrder import ProviderOrder
+
+from auth_app.serializers.userSerializer import UserSerializer
+from gestion.serializers.providerSerializer import ProviderSerializer
+
+from auth_app.models.user import User
+from gestion.models.provider import Provider
+
+from serverConfig.utils import check_user_has_permission
+
+class ProviderOrderSerializer(serializers.ModelSerializer):
+
+    seller = UserSerializer(read_only=True)
+    provider = ProviderSerializer(read_only=True)
+    orderList = serializers.SerializerMethodField("getOrderList", required=False)
+    orderNumber = serializers.SerializerMethodField(read_only=False, required=False)
+
+    class Meta:
+        model = ProviderOrder
+        fields = ('__all__')
+
+    def create(self, validated_data):
+        order = ProviderOrder.objects.create(**validated_data)
+
+        return order
+
+    def update(self, instance, validated_data):
+        
+        return super().update(instance, validated_data)
+
+    def getOrderList(self, obj):
+        from .entriesSerializer import EntriesSerializer
+        return EntriesSerializer(obj.orderList(), context=self.context, many=True).data
+    
+    def get_orderNumber(self, obj: ProviderOrder):
+        return str(obj.id).zfill(5)

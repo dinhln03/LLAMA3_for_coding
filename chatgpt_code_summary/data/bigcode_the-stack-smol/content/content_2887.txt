@@ -1,0 +1,37 @@
+# author : 陈熙
+# encoding:utf-8
+
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
+
+class SendEmail:
+    sender = 'atomuser@139.com'#'ccu_queryresul@139.com'
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = Header("长春大学成绩通知,请勿回复","utf-8")
+    msg['From'] = r"%s<atomuser@139.com>"%Header("www.a-tom.win","utf-8")
+
+    def __init__(self,table,rcpt):
+        self.table = table
+        self.rcpt = rcpt
+        SendEmail.msg['To'] = self.rcpt
+        html_part = MIMEText(self.table,'html')
+        html_part.set_charset('gbk')
+        SendEmail.msg.attach(html_part)
+
+    def send(self):
+        try:
+            s = smtplib.SMTP('smtp.139.com')
+            s.login('atomuser','849801576')
+            s.sendmail(SendEmail.sender,self.rcpt,SendEmail.msg.as_string())
+            return '邮件发送成功，请登录邮箱查收...'
+        except Exception:
+            return '邮件发送失败... '
+
+    def __del__(self):
+        pass
+
+
+
+

@@ -1,0 +1,74 @@
+#ERIMX Made By Paradox4280 aka c2FI, x2Fi, RG9t
+
+import discord, base64, codecs, requests, urllib.parse, datetime, asyncio, sys, praw
+import random, aiohttp, io, json, os, string, platform, time, bs4, colorama
+
+from discord.ext import (
+    commands
+)
+from discord.voice_client import VoiceClient
+# from discord.ext.commands import bot
+from bs4 import BeautifulSoup as bs4
+from colorama import Fore, Style
+from discord import Permissions
+from discord.utils import get
+from discord import User
+from os import system
+
+with open('config.json') as f:
+    config = json.load(f)
+
+def get_prefix(paradox, message):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+
+paradox = commands.Bot(command_prefix = get_prefix, case_Insensitive = True)
+[paradox.load_extension(f"cogs.{cog[:-3]}") for cog in os.listdir("cogs") if cog.endswith(".py")]
+
+@paradox.event
+async def on_ready():
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Her"))
+    print(f'\n{Fore.GREEN}[>] {Fore.RESET}{Fore.CYAN}Logged in as{Fore.RESET} {Fore.YELLOW}{paradox.user.name}#{paradox.user.discriminator}\n')
+    print(f'\n{Fore.GREEN}[>]{Fore.RESET} {Fore.CYAN}User ID:{Fore.RESET} {Fore.YELLOW}{paradox.user.id}\n')
+    print(f'\n{Fore.GREEN}[>]{Fore.RESET} {Fore.CYAN}Version:{Fore.RESET} {Fore.YELLOW}{discord.__version__}\n')
+
+@paradox.event
+async def on_command_error(ctx, error):
+  embed = discord.Embed(description=f'Error. Try =help ({error})', color = 16202876)
+  await ctx.send(embed = embed)
+    
+@paradox.event
+async def on_guild_join(guild):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+
+    prefixes[str(guild.id)] = '='
+
+    with open('prefixes.json', 'w') as f:
+        json.dump(prefixes, f, indent=4)
+
+@paradox.event
+async def on_guild_remove(guild):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+
+    prefixes.pop(str(guild.id))
+
+    with open('prefixes.json', 'w') as f:
+        json.dump(prefixes, f, indent=4)
+
+
+@paradox.command()
+async def changeprefix(ctx, prefix):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+
+    prefixes[str(ctx.guild.id)] = prefix
+    
+    with open('prefixes.json', 'w') as f:
+        json.dump(prefixes, f, indent=4)
+    
+    embed = discord.Embed(description = f'prefix changed to: {prefix}', color = 16202876)
+    await ctx.send(embed = embed)
+    
+paradox.run(os.getenv('BOT_TOKEN'))

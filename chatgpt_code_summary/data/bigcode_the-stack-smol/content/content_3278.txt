@@ -1,0 +1,27 @@
+# author : chenxi
+# encoding:utf-8
+
+import time
+import run
+
+if __name__ == "__main__":
+	mutex = 1
+	user = 0
+	users = []
+	while True:
+		if mutex == 1:
+			mutex = mutex - 1
+			try:
+				users.append(user)
+				users[user] = run.Score()
+				users[user].run_server()
+				user = user + 1
+				mutex = mutex +1
+				print mutex
+			except Exception:
+				time.sleep(3)
+				mutex = mutex +1
+				print mutex
+				continue
+		else:
+			print mutex

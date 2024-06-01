@@ -1,0 +1,53 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code defines two form classes for importing data in a Django application. 
+
+1. `ImportDataForm`: This base form allows users to select a file for import, specify a separator character, and set an option to continue on error when importing. It ensures that if the separator character is left empty, it defaults to a semicolon.
+
+2. `ImportIdentitiesForm`: This form extends `ImportDataForm` and adds a checkbox option to crypt passwords during the import process. It includes a help text to guide users on checking the option if passwords in the file are not yet encrypted. } [/INST] { """Forms related to import operations."""
+
+from __future__ import unicode_literals
+
+from django import forms
+from django.utils.translation import ugettext_lazy
+
+
+class ImportDataForm(forms.Form):
+
+    """Base form to import objects."""
+
+    sourcefile = forms.FileField(label=ugettext_lazy("Select a file"))
+    sepchar = forms.CharField(
+        label=ugettext_lazy("Separator"),
+        max_length=1,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    continue_if_exists = forms.BooleanField(
+        label=ugettext_lazy("Continue on error"), required=False,
+        help_text=ugettext_lazy("Don't treat duplicated objects as error")
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(ImportDataForm, self).__init__(*args, **kwargs)
+        self.fields["sepchar"].widget.attrs = {"class": "col-md-1 form-control"}
+
+    def clean_sepchar(self):
+        if self.cleaned_data["sepchar"] == "":
+            return ";"
+        return self.cleaned_data["sepchar"]
+
+
+class ImportIdentitiesForm(ImportDataForm):
+
+    """A form to import identities."""
+
+    crypt_password = forms.BooleanField(
+        label=ugettext_lazy("Crypt passwords"), required=False,
+        help_text=ugettext_lazy(
+            "Check this option if passwords contained in your file "
+            "are not crypted"
+        )
+    ) }
+</s>

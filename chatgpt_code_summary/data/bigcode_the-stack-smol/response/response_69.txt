@@ -1,0 +1,9 @@
+These Python classes define custom exceptions that can be raised in specific scenarios. 
+
+1. `DirectionNotDetermined`: Raised when the hand does not move in only one direction, making it impossible to determine the movement direction.
+   
+2. `ConfigError`: Indicates a possible syntax error in the configuration.
+   
+3. `GestureNotDetermined`: Raised when a gesture does not match any of the registered gestures. 
+
+Each class initializes with a default message and inherits from the `BaseException` class. When raising these exceptions, the provided messages can help in identifying the specific issue encountered in the program.

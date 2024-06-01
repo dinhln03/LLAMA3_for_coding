@@ -1,0 +1,41 @@
+from switch import Switch
+
+class Link():
+
+	def __init__(self, lid, init_capacity, delay):
+		self.lid = lid
+		self.init_capacity = init_capacity
+		self.capacity = init_capacity
+		self.end1 = "None"
+		self.end2 = "None"
+		self.delay = delay 
+		self.level = "None"
+		self._edges = []
+
+	# attach a link between a server and a switch, or between two switches 	
+	def attach(self, x, y):
+		if type(x) is Switch:
+			self.end1 = x.id
+			x.bindPort()	
+		else:
+			self.end1 = x.id
+
+		if type(y) is Switch:
+			self.end2 = y.id
+			y.bindPort()
+		else:
+			self.end2 = y.id
+
+	def canFitEdge(self, G, edge):
+		if (self.capacity - G.edges[edge]['bandwidth'] >= 0):
+			return True 
+		else:
+			return False 
+
+	def putEdge(self, G, edge):
+		self.capacity -=  G.edges[edge]['bandwidth'] 
+		self._edges.append(edge)
+
+	def removeEdge(self, G, edge):
+		self.capacity = self.capacity +  G.edges[edge]['bandwidth']
+		self._edges.remove(edge)		

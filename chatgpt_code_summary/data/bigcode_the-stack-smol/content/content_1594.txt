@@ -1,0 +1,51 @@
+from drawy import *
+
+class Button:
+    def __init__(self, text, click_handler, point, width, height, *, hide=False, do_highlight=True, background_color='gray', highlight_color='lightgray', text_color='black', border_color='black'):
+        self.text = text
+        self.click_handler = click_handler
+        self.point = Point(*point)
+        self.width = width
+        self.height = height
+        self.hide = hide
+        self.do_highlight = do_highlight
+        self.background_color = background_color
+        self.highlight_color = highlight_color
+        self.text_color = text_color
+        self.border_color = border_color
+
+    def is_point_inside(self, point: Point):
+        return point.is_inside_rectangle(self.point, self.width, self.height)
+
+    def draw(self):
+        if self.hide:
+            return
+        background = self.background_color
+        if self.do_highlight and self.is_point_inside(MOUSE_POSITION):
+            background = self.highlight_color
+        draw_rectangle(self.point, self.width, self.height, background)
+        draw_rectangle(self.point, self.width, self.height, self.border_color, fill=False, border_thickness=4)
+        draw_text(self.text, self.point + Point(self.width, self.height) / 2, self.text_color)
+
+    def on_click(self):
+        if self.is_point_inside(MOUSE_POSITION) and self.click_handler:
+            self.click_handler()
+
+BUTTONS = [
+    Button("SCORE", lambda: print('score!'), (100, 100), 200, 60),
+    Button("test", lambda: print("test!"), (100, 300), 200, 60),
+]
+
+def init():
+    pass
+
+def draw():
+    for b in BUTTONS:
+        b.draw()
+
+def on_click():
+    for b in BUTTONS:
+        b.on_click()
+
+
+run(background_color='#ccc', title='Buttons test')

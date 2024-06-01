@@ -1,0 +1,46 @@
+# -*- coding: utf-8 -*-
+
+data = ''
+with open('input.txt') as f:
+    data = f.read().strip()
+
+def Reacts(a, b):
+    if a == b:
+        return False
+    if a.lower() == b or b.lower() == a:
+        return True
+    return False
+
+def Collapse(polymer):
+        
+    i = 1
+    while i < len(polymer):
+           
+        if Reacts(polymer[i - 1], polymer[i]):
+            del(polymer[i-1])
+            del(polymer[i-1])
+            i = i - 2
+        i += 1
+    
+    return polymer
+
+    
+#data = 'bbbbAaccc'
+polymer = list(data)
+
+p_c = Collapse(polymer)
+print(len(p_c))
+
+alphabet = 'abcdefghijklmnopqrstuvwxyz'
+
+len_min = len(polymer)
+
+for l in alphabet:
+    filtered_data = data.replace(l, '').replace(l.upper(), '')
+    polymer = list(filtered_data)
+    p_c = Collapse(polymer)
+    print(l, len(p_c))
+    if len(p_c) < len_min:
+        len_min = len(p_c)
+
+print(len_min)

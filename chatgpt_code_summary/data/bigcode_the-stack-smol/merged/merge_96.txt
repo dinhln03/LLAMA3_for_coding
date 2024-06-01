@@ -1,0 +1,53 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script uses the argparse module to parse command-line arguments. If the '--list' argument is provided, it executes a subprocess to run a Terraform command and retrieve JSON output. The script then processes this JSON data to extract host information and organize it into a dictionary named 'result'. Each host is linked to its corresponding group, containing details like IP address. Finally, it constructs a JSON structure representing groups, hosts, and their variables. If '--list' is not specified, it outputs an empty JSON dictionary. After executing the script, it generates a JSON output containing groups, hosts, and their associated data. } [/INST] { #!/usr/bin/python
+import argparse
+import subprocess
+import json
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--list", action="store_true")
+args = parser.parse_args()
+
+result = {"_meta": {"hostvars": {}}}
+if args.list:
+    output = subprocess.check_output([
+        "cd ../terraform/stage; terraform show -json"
+    ], shell=True)
+    data = json.loads(output)
+
+    group_list = set()
+
+    try:
+        for module in data["values"]["root_module"]["child_modules"]:
+            try:
+                for resource in module["resources"]:
+                    if resource["type"] == "null_resource":
+                        continue
+                    group_name = resource["name"]
+                    values = resource["values"]
+                    host_name = values["name"]
+                    ip = values["network_interface"][0]["nat_ip_address"]
+
+                    if group_name not in result:
+                        result[group_name] = {"hosts": []}
+
+                    group_list.add(group_name)
+
+                    result[group_name]["hosts"].append(host_name)
+                    result["_meta"]["hostvars"][host_name] = {
+                        "ansible_host": ip
+                    }
+            except KeyError:
+                continue
+
+        result["all"] = {"children": list(group_list), "hosts": [], "vars": {}}
+    except KeyError:
+        pass
+
+    print(json.dumps(result))
+
+else:
+    print(json.dumps(result)) }
+</s>

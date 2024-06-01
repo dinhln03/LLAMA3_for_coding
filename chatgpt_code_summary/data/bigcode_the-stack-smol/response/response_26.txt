@@ -1,0 +1,8 @@
+The given Python code defines a class `AnnotationsService` with methods to generate, find, and update annotations. It interacts with different repositories for images, annotations, and fragments. 
+
+- The `generate_annotations` method fetches and processes an image to generate annotations using an AI client.
+- The `find` method retrieves annotations by a museum number.
+- The class has private methods to handle labeling and cropping images based on annotations.
+- The `update` method updates annotations with cropped images, stores them, and logs the changes made by a user.
+
+The code integrates various components to manage and process annotations for archaeological fragments.

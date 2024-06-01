@@ -1,0 +1,14 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script defines a function named `get_db_config` that reads a JSON configuration file named `config.json`. The function opens the file, reads its contents using the `json.loads` method, and returns the data as a dictionary. This code snippet enables the user to retrieve database configuration settings stored in a JSON file in a structured format. } [/INST] { #!/usr/bin/python
+import os
+import json
+
+def get_db_config():
+    # read config file and return data
+    data = {}
+    with open('config.json', 'r') as infile:
+        data = json.loads(infile.read())
+    return data }
+</s>

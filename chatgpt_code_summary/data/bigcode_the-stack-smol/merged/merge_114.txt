@@ -1,0 +1,18 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code defines a class `TicksValidator` that extends `_plotly_utils.basevalidators.EnumeratedValidator`. It is meant for validating settings related to ticks in a plotting library. The class initializes with parameters for `plotly_name`, `parent_name`, and other optional settings. It sets default values for `edit_type` and `values`, and any additional keyword arguments are also accepted. This class is part of a larger system for validating and handling plot settings, with a focus on color bars and tick settings for histograms and contours. } [/INST] { import _plotly_utils.basevalidators
+
+
+class TicksValidator(_plotly_utils.basevalidators.EnumeratedValidator):
+    def __init__(
+        self, plotly_name="ticks", parent_name="histogram2dcontour.colorbar", **kwargs
+    ):
+        super(TicksValidator, self).__init__(
+            plotly_name=plotly_name,
+            parent_name=parent_name,
+            edit_type=kwargs.pop("edit_type", "colorbars"),
+            values=kwargs.pop("values", ["outside", "inside", ""]),
+            **kwargs
+        ) }
+</s>

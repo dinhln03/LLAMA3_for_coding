@@ -1,0 +1,106 @@
+import time
+from bs4 import BeautifulSoup
+import requests
+import json
+from datetime import datetime, timedelta
+import psycopg2
+import smtplib
+import os
+
+
+DATABASE = os.environ["DATABASE"]
+USER = os.environ["USER"]
+PASSWORD = os.environ["PASSWORD"]
+HOST = os.environ["HOST"]
+
+
+def send_email(message: str) -> None:
+    """
+    Sends an email to target email with given message.
+    Args:
+        message (str): message you're sending
+    """
+    with open("../creds.json", "r") as f:
+        creds = json.loads(f)
+
+    gmail_user = creds["user"]
+    gmail_pass = creds["pass"]
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(gmail_user, gmail_pass)
+        server.sendmail(gmail_user, creds["target"], message)
+    except:
+        print("Email didnt work...")
+
+
+def get_data() -> None:
+    """
+    Infinite loop of every 10min requests to Vilnius vaccination center.
+    Collects count of vaccines and adds to PostgreSQL database.
+    Sends an email if Pfizer vaccine is available.
+    """
+    while True:
+        sql_connection = psycopg2.connect(
+            database=DATABASE, user=USER, password=PASSWORD, host=HOST
+        )
+        # Connect to DB
+        cur = sql_connection.cursor()
+
+        headers = {
+            "Connection": "keep-alive",
+            "Cache-Control": "max-age=0",
+            "sec-ch-ua": "^\\^",
+            "sec-ch-ua-mobile": "?0",
+            "Upgrade-Insecure-Requests": "1",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-User": "?1",
+            "Sec-Fetch-Dest": "document",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+
+        page = requests.get(
+            "https://vilnius-vac.myhybridlab.com/selfregister/vaccine", headers=headers
+        )
+
+        soup = BeautifulSoup(page.content, "html.parser")
+
+        vaccines = soup.find("vaccine-rooms", class_=None)[":vaccine-rooms"]
+
+        json_object = json.loads(vaccines)
+
+        # Time
+        time_raw = soup.find("small", class_="text-muted").get_text().split()
+        time_str = time_raw[2] + " " + time_raw[3]
+        dt = datetime.fromisoformat(time_str)
+        now = datetime.now().replace(microsecond=0)
+        eet_dt = now + timedelta(hours=3)
+        diff_secs = (eet_dt - dt).seconds
+        total_sleep = 602 - diff_secs
+
+        moderna = json_object[0]["free_total"]
+        pfizer = json_object[1]["free_total"]
+        astra = json_object[2]["free_total"]
+        janssen = json_object[3]["free_total"]
+
+        cur.execute(
+            f"INSERT INTO vilnius_vakcinos (time, moderna, pfizer, astra_zeneca, janssen) VALUES ('{time_str}', {moderna}, {pfizer}, {astra}, {janssen});"
+        )
+
+        sql_connection.commit()
+        sql_connection.close()
+
+        if pfizer > 0:
+            send_email(
+                "Pfizer count: {pfizer}, link to register: https://vilnius-vac.myhybridlab.com/selfregister/vaccine"
+            )
+
+        time.sleep(total_sleep)
+
+
+if __name__ == "__main__":
+    get_data()

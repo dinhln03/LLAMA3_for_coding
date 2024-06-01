@@ -1,0 +1,10 @@
+class Car:
+
+    def needFuel(self):
+        pass
+
+    def getEngineTemperature(self):
+        pass
+
+    def driveTo(self, destination):
+        pass

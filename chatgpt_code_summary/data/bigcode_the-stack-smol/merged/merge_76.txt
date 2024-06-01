@@ -1,0 +1,49 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script initializes lists for time `t`, lambda `lam`, and letters `com`. It then creates dictionaries `S` and `C` to store values based on combinations of lambda/combinations and time/combinations, respectively. The script calculates the dimensions for a matrix `B_matrix` based on the lengths of the input lists, then populates this matrix with values from the dictionaries `S` and `C` using nested loops. The snippet performs mapping and generates a matrix `B_matrix` filled with values based on specific indices derived from the given combinations of time, lambda, and letters. } [/INST] { # -*- coding: utf-8 -*-
+"""
+Created on Tue May 12 14:25:43 2020
+
+@author: greg6
+"""
+
+import numpy as np
+
+t = [i for i in range(3)]
+lam = [100+i*10 for i in range(2)]
+com = ["A","B","C"]
+
+S = dict()
+for l in lam:
+    for u,c in enumerate(com):
+        S[(l,c)] = l+0.1*u
+
+C = dict()
+for i in t:
+    for u,c in enumerate(com):
+        C[(i,c)] = (i+0.1*u)
+
+nt = len(t)
+nw = len(lam)
+nc = len(com)
+nparams = 2
+
+nd = nw*nt
+ntheta = nc*(nw+nt)+nparams
+
+B_matrix = np.zeros((ntheta,nw*nt))
+for i, t in enumerate(t):
+    for j, l in enumerate(lam):
+        for k, c in enumerate(com):
+            # r_idx1 = k*nt+i
+            r_idx1 = i * nc + k
+            r_idx2 = j * nc + k + nc * nt
+            # r_idx2 = j * nc + k + nc * nw
+            # c_idx = i+j*nt
+            c_idx = i * nw + j
+            # print(j, k, r_idx2)
+            B_matrix[r_idx1, c_idx] = S[l, c]
+            # try:
+            B_matrix[r_idx2, c_idx] = C[t, c] }
+</s>

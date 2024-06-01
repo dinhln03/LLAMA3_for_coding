@@ -1,0 +1,176 @@
+import pygame
+import random
+
+import helpers
+from ItemManager import ItemManager
+import scorer
+
+class BlockManager:
+	def __init__(self,main):
+		self.main = main
+
+		self.blockSize = 75
+		self.gridWidth = 12
+		self.gridHeight = 12
+
+		self.grid = []
+		for x in range(0,self.gridWidth):
+			newColumn = []
+			for y in range(0,self.gridHeight):
+				newColumn.append(None)
+			self.grid.append(newColumn)
+
+		self.numTypes = 8
+		self.images = []
+		for x in range(0,self.numTypes):
+			self.images.append(helpers.loadTGA(str(x))[0])
+
+		self.maxTimeTillNew = 40
+		self.timeTillNew = self.maxTimeTillNew
+		self.moveTime = 0
+		self.moveFrec = 10
+
+	def compute(self):
+		self.calculateSpeed()
+
+		self.moveTime += 1
+
+		if self.moveTime % self.moveFrec == 0:
+			self.moveBlocksDown()
+
+		#Check for game over.
+		doneChecking = 0
+		y = 0
+		while y < self.gridHeight and not doneChecking:
+			x = 0
+			while x < self.gridWidth and not doneChecking:
+				if self.grid[x][y] is None:
+					doneChecking = 1
+				x += 1
+			y += 1
+		if not doneChecking: #If none in the top row were None:
+			self.main.lose()
+
+
+		self.timeTillNew -= 1
+		if self.timeTillNew == 0:
+			self.getNewBlock()
+			self.timeTillNew = self.maxTimeTillNew
+
+		self.checkAdj()
+
+	def checkAdj(self):
+		#Check grid for triple adjacency.
+		for x in range(0,self.gridWidth):
+			for y in range(0,self.gridHeight):
+				if self.grid[x][y] is not None:
+					adjacents = helpers.getAdjacents(x,y,self.grid)
+					if len(adjacents) >= 3:
+						for point in adjacents:
+							self.grid[point[0]][point[1]] = None
+							self.main.explosionGraphics.getPoint(point[0]*self.blockSize+self.blockSize/2,point[1]*self.blockSize+self.blockSize/2)
+							#+self.blockSize/2 so it's in the center.
+						for anObject in self.main.objects:
+							if isinstance(anObject,scorer.Scorer):
+								anObject.getDestroyedBlocks(len(adjacents))
+							if isinstance(anObject, ItemManager):
+								anObject.getDestroyedBlocks(adjacents)
+
+	def getNewBlock(self):
+		pos = random.randint(0,self.gridWidth - 1)
+		while self.grid[pos][0] is not None:
+			pos = random.randint(0,self.gridWidth - 1)
+		col = random.randint(0,self.numTypes - 1)
+		self.grid[pos][0] = col
+
+	def moveBlocksDown(self):
+		#Move all blocks down.
+		for x in range(0,self.gridWidth):
+			for y in range(self.gridHeight-2,-1,-1): #From gridHeight-2 to 0. Blocks on the bottom (y=gridHeight - 1) won't move down no matter what.
+				if self.grid[x][y] is not None and self.grid[x][y + 1] is None:
+					self.grid[x][y + 1] = self.grid[x][y]
+					self.grid[x][y] = None
+
+	def draw(self,surface):
+		for y in range(0,self.gridHeight):
+			for x in range(0,self.gridWidth):
+				if self.grid[x][y] is not None:
+					surface.blit(self.images[self.grid[x][y]],(x*self.blockSize,y*self.blockSize))
+
+	def getDown(self):
+		self.moveBlocksDown()
+		self.moveTime = 0
+		if self.timeTillNew <= self.moveFrec:
+			self.getNewBlock()
+			self.timeTillNew = self.maxTimeTillNew
+		else:
+			self.timeTillNew -= self.moveFrec
+
+	def getRight(self):
+		#Remember: Blocks will not move right if there is a block directly below them.
+		for y in range(self.gridHeight-2,-1,-1): #From gridHeight-2 to 0. Blocks on the bottom (y=gridHeight - 1) won't move right no matter what.
+			for x in range(self.gridWidth-2,-1,-1): #From gridWidth-2 to 0. Blocks on the right (x=gridWidth - 1) won't move right no matter what.
+				if self.grid[x][y] is not None and self.grid[x + 1][y] is None and self.grid[x][y + 1] is None:
+					self.grid[x + 1][y] = self.grid[x][y]
+					self.grid[x][y] = None
+	def getLeft(self):
+		#Remember: Blocks will not move right if there is a block directly below them.
+		for y in range(self.gridHeight-2,-1,-1): #From gridHeight-2 to 0. Blocks on the bottom (y=gridHeight - 1) won't move left no matter what.
+			for x in range(1,self.gridWidth): #From 1 to gridWidth-1. Blocks on the left (x=0) won't move left no matter what.
+				if self.grid[x][y] is not None and self.grid[x - 1][y] is None and self.grid[x][y + 1] is None:
+					self.grid[x - 1][y] = self.grid[x][y]
+					self.grid[x][y] = None
+
+	def calculateSpeed(self):
+		for anObject in self.main.objects:
+			if isinstance(anObject,scorer.Scorer):
+				score = anObject.score
+			if isinstance(anObject, ItemManager):
+				itemManager = anObject
+
+		k = 0
+		if score > 10:  k = 1
+		if score > 20:  k = 2
+		if score > 50:  k = 3
+		if score > 100:  k = 4
+		if score > 200:  k = 5
+		if score > 400:  k = 6
+		if score > 600:  k = 7
+		if score > 800:  k = 8
+		if score > 1000:  k = 9
+		if score > 2000:  k = 10
+		if score > 3000:  k = 11
+		if score > 4000:  k = 12
+		if score > 5000:  k = 13
+		if score == 9999:  k = 14
+
+
+		self.maxTimeTillNew = {
+			0: 100,
+			1: 80,
+			2: 60,
+			3: 50,
+			4: 40,
+			5: 36,
+			6: 34,
+			7: 30,
+			8: 28,
+			9: 26,
+			10: 24,
+			11: 22,
+			12: 20,
+			13: 19,
+			14: 18
+		}[k]
+
+		if k <= 2:
+			self.moveFrec = 10
+		else:
+			self.moveFrec = self.maxTimeTillNew / 3
+
+		scorer.comboLastTime = self.maxTimeTillNew * 3
+
+		if k > 0:
+			itemManager.itemFrec = max(int(self.maxTimeTillNew * 2.5), 30 * 2.5) #128
+			itemManager.itemLastTime = itemManager.itemFrec * 8
+			itemManager.itemsAvailable = min(k, 8)

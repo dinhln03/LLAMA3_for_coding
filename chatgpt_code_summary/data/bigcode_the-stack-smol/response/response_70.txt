@@ -1,0 +1,13 @@
+This Python code defines classes and functions related to a framework for developing Augmented Hierarchical State Machines (AHSMs). Here's a concise summary of the code:
+
+- The `Spy` class is for debugging and needs to be enabled by calling `Spy.enable_spy(<Spy implementation class>)`. It contains methods for handling signals.
+- `Signal` class manages signals and their registration.
+- An `Event` is a tuple of (signal, value) passed between states.
+- The `Hsm` class implements a Hierarchical State Machine with support for state nesting and transitions.
+- The `Framework` class holds AHSMs, events, and the event loop, offering methods to post events, manage time-based events, and run the system to completion.
+- The `Ahsm` class extends `Hsm` and includes a message queue for processing events with a priority value.
+- The `TimeEvent` class is for creating time-sensitive events to be managed by the `Framework`.
+
+Finally, the code imports the `VcdSpy` class for a Spy implementation.
+
+This code essentially sets up a framework with classes to manage state machines, events, time events, and debugging. It provides a structure for developing complex state machine-based applications.

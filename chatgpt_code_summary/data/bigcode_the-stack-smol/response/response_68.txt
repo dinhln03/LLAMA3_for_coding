@@ -1,0 +1,8 @@
+This Python code defines Django models for managing cloud provider templates, regions, zones, and plans. It includes methods for setting variables, creating images, allocating IPs, and more. 
+
+1. The `CloudProviderTemplate` class represents a cloud provider template with methods to lookup and set variables from meta.
+2. The `Region` class represents a region with properties for zone and cluster sizes, image paths, and methods to set variables and handle region creation.
+3. The `Zone` class represents a zone with methods for changing status, creating images, allocating IPs, and converting to dictionary.
+4. The `Plan` class represents a deployment plan with methods to retrieve mixed variables, get zones, and retrieve compute models.
+
+Each class defines properties and methods to manage relationships and perform specific actions within a cloud infrastructure environment using Django models and methods.

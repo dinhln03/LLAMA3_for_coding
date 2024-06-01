@@ -1,0 +1,33 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code defines a response class for creating settlement bills in Alipay's financial services. The code extends the `AlipayResponse` class and includes methods to set and get the `result_set` attribute, which contains information about the settlement bill. The `parse_response_content` method parses the response content and populates the `result_set` attribute if it exists in the response. The `result_set` attribute is expected to be an instance of `SettlementbillOpenApiDTO` class or transformed from a dictionary if necessary. This code facilitates handling Alipay settlement bill creation responses by encapsulating the data in a structured manner for further processing. } [/INST] { #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import json
+
+from alipay.aop.api.response.AlipayResponse import AlipayResponse
+from alipay.aop.api.domain.SettlementbillOpenApiDTO import SettlementbillOpenApiDTO
+
+
+class AlipayBossFncSettleSettlementbillCreateResponse(AlipayResponse):
+
+    def __init__(self):
+        super(AlipayBossFncSettleSettlementbillCreateResponse, self).__init__()
+        self._result_set = None
+
+    @property
+    def result_set(self):
+        return self._result_set
+
+    @result_set.setter
+    def result_set(self, value):
+        if isinstance(value, SettlementbillOpenApiDTO):
+            self._result_set = value
+        else:
+            self._result_set = SettlementbillOpenApiDTO.from_alipay_dict(value)
+
+    def parse_response_content(self, response_content):
+        response = super(AlipayBossFncSettleSettlementbillCreateResponse, self).parse_response_content(response_content)
+        if 'result_set' in response:
+            self.result_set = response['result_set'] }
+</s>

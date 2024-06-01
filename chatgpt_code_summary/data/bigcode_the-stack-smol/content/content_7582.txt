@@ -1,0 +1,19 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun 10 08:10:27 2018
+
+@author: lenovo-pc
+"""
+
+file_path='D://aaa//kaifangX.txt'
+email_path='D://aaa//99.txt'
+file_path=open(file_path,'w',encoding='utf-8') 
+email_path=open(email_path,'w',encoding='utf-8')
+for i in range(10000):
+    try:
+        c=b.readline().split(',')[-2]
+        b.write(c)
+    except Exception as e:
+        print(e)
+        print('没有邮箱')
+print(c)

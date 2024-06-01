@@ -1,0 +1,11 @@
+from pyowm import OWM
+owm = OWM('21ff51d901692fd3e2f5ecc04d3617f1')
+place = input('Input Place: ')
+mgr = owm.weather_manager()
+observation = mgr.weather_at_place(place)
+w = observation.weather
+wind = w.detailed_status
+t = w.temperature('celsius')
+print(wind)
+print(t)
+exit_ = input('')

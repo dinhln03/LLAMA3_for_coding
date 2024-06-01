@@ -1,0 +1,25 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python program simulates the Josephus problem: N soldiers stand in a circle, and one kills the next soldier, passing a sword until only one survives. The code defines a function `josephus` taking the number of soldiers and an optional step size. It calculates the survivor using a while loop by eliminating soldiers based on the step size. The program then prompts the user for the number of soldiers, creates a list representing them, and invokes the `josephus` function with this list. Finally, it determines the surviving soldier and displays the result. } [/INST] { # Problem: N soldiers are standing in a circle and 
+ # first person has sword and he kills the 2nd person 
+ # and gives the sword to the third person and so on 
+ # till 99th person kills the 100th person gives the 
+ # sword back to the first person, this goes on till 
+ # only one person survives. Print the survivor.
+ 
+def josephus(people, step=2):
+  if step<=1:
+    print("Enter step value, greater than 1")
+  else:
+    step -= 1 # translated to zero-based indexing
+    kill = step # kill will hold the index of current person to die
+    while(len(people) > 1):
+      print(people.pop(kill)) # pop method removes the element from the list
+      kill = (kill + step) % len(people) 
+    print(people[0], "is safe")
+   
+num = int(input("Enter the number of soldiers:  "))
+soldiers = [i for i in range(1, num+1)] # generates a list of 1..num
+josephus(soldiers) }
+</s>

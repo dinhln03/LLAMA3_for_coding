@@ -1,0 +1,5 @@
+print('\033[1;33m--' * 10)
+print('\033[1;32m EXERCÍCIO 002')
+print('\033[1;33m--\033[m' * 10)
+nome = input('\033[1;34mDigite seu nome: ')
+print(f'É um prazer te conhecer, \033[1;33m{nome}!')

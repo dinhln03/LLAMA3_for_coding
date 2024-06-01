@@ -1,0 +1,65 @@
+"""This code demonstrates how to perform the tested data reduction module.
+"""
+
+import os
+import sys
+import glob
+import pyabf
+import matplotlib.pyplot as plt
+
+
+pathToHere = os.path.abspath(os.path.dirname(__file__))
+pathToData = os.path.abspath(pathToHere + "/../data/")
+pathToModule = os.path.abspath(pathToHere + "/../../src/")
+
+sys.path.insert(0, pathToModule)
+
+import drtest as dr
+
+
+for file in sorted(glob.glob(pathToData + "/*.abf")):
+    
+    abf = pyabf.ABF(file)
+    abf.setSweep(4, 1)
+    
+    xdata = abf.sweepX
+    ydata = abf.sweepY
+    
+    da = dr.DataAnalysis(xdata, ydata)
+    xdec, ydec = da.data_reduction(method='decimate', reduction_factor=4)
+    xavr, yavr = da.data_reduction(method='average', reduction_factor=4)
+    xmin, ymin = da.data_reduction(method='min', reduction_factor=4)
+    xmax, ymax = da.data_reduction(method='max', reduction_factor=4)
+    xminmax, yminmax = da.data_reduction(method='min/max', reduction_factor=4)
+    
+    xxxx = [xdec, xavr, xmin, xmax, xminmax]
+    yyyy = [ydec, yavr, ymin, ymax, yminmax]  
+    
+    ## 2D plot
+    # plt.plot(xdec, ydec)
+    # plt.plot(xavr, yavr)
+    # plt.plot(xmin, ymin)
+    # plt.plot(xmax, ymax)
+    # plt.show()
+    
+    ## 3D plot
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    zs = [i for i in range(0, 6)]
+
+    ax.plot(xdata, ydata, zs[0], zdir='y', color='black', linewidth=1.5)
+    ax.plot(xdec, ydec, zs[1], zdir='y', color='red', linewidth=1.5)
+    ax.plot(xavr, yavr, zs[2], zdir='y', color='green', linewidth=1.5)
+    ax.plot(xmin, ymin, zs[3], zdir='y', color='orange', linewidth=1.5)
+    ax.plot(xmax, ymax, zs[4], zdir='y', color='blue', linewidth=1.5)
+    ax.plot(xminmax, yminmax, zs[5], zdir='y', color='brown', linewidth=1.5)
+    
+    zlabels = [' ', 'raw data', 'decimate', 'average', 'minimum', 'maximum', 'min/max']
+    ax.set_xlabel('Time (s)', fontweight='bold', fontsize='medium')
+    ax.set_zlabel('Voltage (mV)', fontweight='bold', fontsize='medium')
+    ax.set_yticklabels(zlabels, rotation=-15, verticalalignment='baseline', horizontalalignment='left', fontweight='bold')
+    
+    for angle in range(0, 360):
+                        ax.view_init(25, angle)
+                        plt.draw()
+                        plt.pause(.0001)

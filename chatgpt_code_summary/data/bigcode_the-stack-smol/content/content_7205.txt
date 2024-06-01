@@ -1,0 +1,33 @@
+
+import sys
+import mrjob
+from mrjob.job import MRJob
+import re
+from itertools import islice, izip
+import itertools
+from mrjob.step import MRStep
+from mrjob.protocol import JSONValueProtocol
+
+
+WORD_RE = re.compile(r'[a-zA-Z]+')
+
+
+class BigramCount(MRJob):
+    OUTPUT_PROTOCOL = JSONValueProtocol
+    def mapper(self, _, line):
+        words = WORD_RE.findall(line)
+        for i in izip(words, islice(words, 1, None),islice(words,2,None)):
+            bigram=(i[0],i[1],i[2])
+            s_bigram=sorted(bigram)
+            yield s_bigram,1
+    def combiner(self, bigram, counts):
+        yield (bigram,sum(counts))
+    def reducer(self, bigram, counts):
+        yield (bigram,sum(counts))
+    
+  
+
+if __name__ == '__main__':
+    sys.stdout=open("data/samplejson.json",'w')
+    BigramCount.run()
+    

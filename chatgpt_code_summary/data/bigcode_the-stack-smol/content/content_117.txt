@@ -1,0 +1,17 @@
+#%%
+import cv2
+from pathlib import Path
+
+#%%
+
+root = Path(__file__).resolve().absolute().parent
+jorge_path = root / "jorge"
+jorge_dst_path = root / "jorge_100"
+marissa_path = root / "marissa"
+marissa_dst_path = root / "marissa_100"
+
+#%%
+for f in jorge_path.iterdir():
+    old_image = cv2.imread(str(f))
+    image = cv2.resize(old_image, 100)
+    print(image)

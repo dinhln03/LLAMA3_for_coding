@@ -1,0 +1,336 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jun 07 2016
+
+@author: Matthew Carse
+"""
+#@ Class containing methods for machine learning.
+#@ Chromosomes must be preprocessed through feature scaling standardisation prior to being 
+#@ used in machine learning. The class implements Scikit-learn to apply feature scaling to the
+#@ training chromosomes. The scaling factors are retained for use with the validation
+#@ and testing datasets.
+#@ The class is also responsible for reading in groupings for model generation and prediction
+#@ validation. The prediction validation (fitness) can be accuracy, precision, recall or f-statistic.
+#@ Outputs HTML confusion matrices for split mode (lda and rfc on held-out data) and confusion matrix (lda)
+#@ and ROC curve for cross-validation.
+
+import numpy, os
+import vpGenList as vpGenList
+from sklearn import preprocessing
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import cross_validation
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import confusion_matrix
+import plotly as py
+from plotly.graph_objs import Heatmap, Figure 
+import warnings
+warnings.filterwarnings("ignore") # warnings about collinearity are ignored as not relating to number of vpGens
+
+class machineLearning:
+    def __init__(self, mode):
+        self.mode = mode  
+        # call function to read groupings for validation of classification
+        # the file reading will only be performed once with the results
+        # saved to class variables
+        self.groupingsRead()
+        self.cm = False # variable to toggle plotting of confusion matrix for highest-scoring model
+              
+        
+    # use scikit-learn preprocessing to scale features using standardisation ((X-mean)/s.d.)
+    # feature scaling results in 0 or near-0 mean and unit variance for non-0 features 
+    def preprocess(self):
+        # scaling values created using training set
+        # list of training feature set dictionaries decomposed to obtain feature sets
+        self.scaler = preprocessing.StandardScaler().fit(numpy.asarray(self.getFSets(vpGenList.allTrainFSets)))
+
+        # keys used to remake dictionary (both allvpGens and all*FSets in same order)
+        # saved as class variable
+        if len(keys) == 0:
+            for k in vpGenList.allTrainFSets[0]:
+                keys.append(k)
+        
+        # list of dictionaries of scaled feature sets to be sent back to vpGenList
+        allFSetsScaled = list()
+        x = self.scaler.transform(numpy.asarray(self.getFSets(vpGenList.allTrainFSets)))
+        # use list of dictionaries
+        for seq in x:
+            d = {keys[i]: list(seq[i*6:(i+1)*6]) for i in range(400)}
+            allFSetsScaled.append(d)
+        return allFSetsScaled
+
+
+    # read through each dictionary in the list of feature sets
+    # reforming the feature sets into 2400-feature list
+    # results in list of length # sequences * 2400 (400*6)
+    # used to calculate feature scaling values
+    def getFSets(self, fsets):
+        l = list()
+        for d in fsets:
+            subl = list()
+            for fset in d.values():
+                subl += fset
+            l.append(subl)
+        return l
+        
+        
+    # read in protein groupings for use with classification validation
+    # use hard-coded file names, as checked for with program call
+    def groupingsRead(self):
+        if len(trainGroupings) == 0:
+            if self.mode == "split":
+                f = open(("{0}/training_groupings.txt").format(os.getcwd())).read()
+            else:
+                f = open(("{0}/all_groupings.txt").format(os.getcwd())).read()
+            # split using whitespace delimiter
+            for g in f.split():
+                trainGroupings.append(g)
+            #print trainGroupings
+            print 'Training groupings created!'
+            
+        if len(validGroupings) == 0:
+            if self.mode == "split":
+                f = open(("{0}/validation_groupings.txt").format(os.getcwd())).read()
+                # split using whitespace delimiter
+                for g in f.split():
+                    validGroupings.append(g)
+                #print validGroupings
+                print 'Validation groupings created!'
+            
+        if len(testGroupings) == 0:
+            if self.mode == "split":
+                f = open(("{0}/testing_groupings.txt").format(os.getcwd())).read()
+                # split using whitespace delimiter
+                for g in f.split():
+                    testGroupings.append(g)
+                #print testGroupings
+                print 'Testing groupings created!'
+            
+            
+    # function which uses the scaling factors derived from the training dataset
+    # to scale the validation and test datasets' chromosomes
+    def scale(self, dataset):
+        # list of dictionaries of scaled feature sets to be sent back to vpGenList
+        allFSetsScaled = list()
+        # scale feature sets
+        if dataset == 'valid':
+            x = self.scaler.transform(numpy.asarray(self.getFSets(vpGenList.allValidFSets)))
+        if dataset == 'test':
+            x = self.scaler.transform(numpy.asarray(self.getFSets(vpGenList.allTestFSets)))
+        # use list of dictionaries
+        # for each scaled sequence (2400 features, 400 feature sets)
+        # decompose this into feature sets, incrementally taking the next 6 features
+        # each feature set is added to a dictionary with the appropriate id key
+        # each dictionary (one per sequence) is then added to a list and returned
+        for seq in x:
+            d = {keys[i]: list(seq[i*6:(i+1)*6]) for i in range(400)}
+            allFSetsScaled.append(d)
+        return allFSetsScaled
+        
+            
+    # function to create an lda model using the training chromosome list 
+    # of the defined number of chromosomes and the correct peptide groupings
+    # the same identifiers are used to create the validation chromosome list
+    # the lda model predicts the classifications of the validation set
+    # the predictions, along with the correct groupings, are used to calculate
+    # several fitness metrics - precision, accuracy, f-statistic, accuracy
+    def classifyLDA(self, tCList, vCList):
+        if self.mode == "cv":
+            # LDA object
+            clf = make_pipeline(preprocessing.StandardScaler(), LinearDiscriminantAnalysis())
+            predicted = cross_validation.cross_val_predict(clf, tCList, trainGroupings, cv=3)
+
+            if self.cm:
+                self.confusionMatrix(trainGroupings, predicted, 'lda_cv')
+            
+            return precision_recall_fscore_support(trainGroupings, predicted, average = 'weighted')[2]
+            
+        else:
+            clf = LinearDiscriminantAnalysis()
+            # fit lda model using training chromosomes
+            clf.fit(numpy.asarray(tCList), numpy.asarray(trainGroupings))
+            
+            if self.cm:
+                self.confusionMatrix(validGroupings, predicted, 'lda_valid')
+            
+            # return precision ([0]), recall ([1]) or f1 score ([2]), replace with clf.score(numpy.asarray(vCList), validGroupings) for accuracy
+            return precision_recall_fscore_support(validGroupings, clf.predict(numpy.asarray(vCList)), average = 'weighted')[2] # fitness for validation set
+#           return clf.score(numpy.asarray(vCList), validGroupings) # accuracy for validation set
+       
+       
+    # create a random forest model using the training chromosomes
+    # predict the groupings of the validation set
+    ### CHANGE: n_estimators = NUMBER OF DECISION TREES ### 
+    def classifyRFC( self, tCList, vCList):
+        rfc = RandomForestClassifier(n_estimators=5, random_state=1, max_features=None)
+        # fit model using training chromosomes
+        rfc.fit(numpy.asarray(tCList), numpy.asarray(trainGroupings))
+        
+        predicted = rfc.predict(vCList)
+        
+        self.confusionMatrix(validGroupings, predicted, 'rfc_valid')
+        
+        # return precision ([0]), recall ([1]) or f1 score ([2]), replace with rfc.score(numpy.asarray(vCList), validGroupings) for accuracy
+        return precision_recall_fscore_support(validGroupings, predicted, average = 'weighted')[2] # fitness for validation set
+#        return rfc.score(vCList, numpy.asarray(validGroupings)) # accuracy for validation set
+        
+        
+    # create an lda model using the training chromosomes
+    # predict the groupings of the test set
+    def testEvaluateLDA(self, trCList, teCList):
+        # LDA object
+        clf = LinearDiscriminantAnalysis()
+        # fit lda model using training chromosomes
+        clf.fit(numpy.asarray(trCList), numpy.asarray(trainGroupings))
+        
+        predicted = clf.predict(teCList)
+            
+        self.confusionMatrix(testGroupings, predicted, 'lda_test')
+        
+        # return precision ([0]), recall ([1]) or f1 score ([2]), replace with clf.score(numpy.asarray(teCList), testGroupings) for accuracy
+        return precision_recall_fscore_support(testGroupings, predicted, average = 'weighted')[2] # fitness for test set
+#        return clf.score(numpy.asarray(teCList), testGroupings) # accuracy for test set        
+        
+        
+    # create a random forest model using the training chromosomes
+    # predict the groupings of the test set
+    ### CHANGE: n_estimators = NUMBER OF DECISION TREES ### 
+    def testEvaluateRFC(self, trCList, teCList):
+        rfc = RandomForestClassifier(n_estimators=10, random_state=1, max_features=None)
+        # fit model using training chromosomes
+        rfc.fit(numpy.asarray(trCList), numpy.asarray(trainGroupings))
+        
+        predicted = rfc.predict(teCList)
+            
+        self.confusionMatrix(testGroupings, predicted, 'rfc_test')
+
+        # return precision ([0]), recall ([1]) or f1 score ([2]), replace with rfc.score(numpy.asarray(teCList), testGroupings) for accuracy
+        return precision_recall_fscore_support(testGroupings, predicted, average = 'weighted')[2] # fitness for test set
+#        return rfc.score(teCList, numpy.asarray(testGroupings)) # accuracy for test set        
+        
+        
+    # function to plot a confusion matrix heatmap
+    # takes as parameters:
+            # the correct groupings for the test set
+            # the predicted groupings
+            # the classifier type - lda or rfc (to change title/filename)
+    # outputs an html file
+    def confusionMatrix(self, groupings, predicted, clf):
+        cm = confusion_matrix(groupings, predicted)
+        z = cm
+        x=["Hydrolase","Mem. Trans","Structural"] # change as necessary
+        y=["Hydrolase","Mem. Trans","Structural"] # change as necessary
+        data = [Heatmap(z=z,x=x,y=y)] 
+        
+        annotations = []
+        for n, row in enumerate(z):
+            for m, val in enumerate(row):
+                annotations.append(
+                    dict(
+                        text="{:4.2f}% ({})".format((float(val)/len(groupings)*100),str(val)),
+                        x=x[m], y=y[n],
+                        xref='x1', yref='y1',
+                        font=dict(color='white'),
+                        showarrow=False)
+                    )            
+        xaxis = dict(title='Predicted class',ticks='')
+        yaxis = dict(title='Actual class',ticks='')
+        
+        if clf == 'lda_test':
+            title = "Confusion matrix - linear discriminant analysis classification"
+            filename = "Confusion matrix_test_lda"
+        if clf == 'rfc_test':
+            title = "Confusion matrix - random forest classification"  
+            filename = "Confusion matrix_test_rfc"
+        if clf == 'lda_cv':
+            title = "Confusion matrix - linear discriminant analysis classification"
+            filename = "Confusion matrix_cv_lda"
+        if clf == 'lda_valid':
+            title = "Confusion matrix - linear discriminant analysis classification"
+            filename = "Confusion matrix_valid_lda"
+        if clf == 'rfc_valid':
+            title = "Confusion matrix - random forest classification"  
+            filename = "Confusion matrix_valid_rfc"            
+        
+        fig = Figure(data=data)
+        fig['layout'].update(title=title, xaxis=xaxis, yaxis=yaxis, annotations=annotations)
+        py.offline.plot(fig, filename=filename)
+        
+        
+    # function to plot roc curve for a cross-validation model
+    # outputs an html file
+    def rocCurve(self, tCList):
+        from sklearn.cross_validation import KFold
+        from sklearn.metrics import roc_curve, auc
+        from sklearn.preprocessing import label_binarize
+        from sklearn.multiclass import OneVsRestClassifier
+        from plotly.graph_objs import Scatter
+        
+        cv = KFold(len(trainGroupings)+1, n_folds=6)
+            
+        mean_tpr = 0.0
+        fig = py.tools.make_subplots(shared_xaxes=True, shared_yaxes=True, print_grid=False)
+        
+        for index, (train, test) in enumerate(cv):
+            classes = list(set(trainGroupings))
+            classes.sort()
+            y = label_binarize(trainGroupings, classes=classes) 
+            n_classes = len(classes)
+            
+            trainL, testL = [e for e in train], [e for e in test]
+            del trainL[-1] # delete last element otherwise too many
+            del testL[-1]
+            trainL, testL = numpy.asarray(trainL), numpy.asarray(testL)
+            
+            # split dataset for fold into training and testing sets and groupings
+            X_train, X_test, y_train, y_test = numpy.asarray(tCList)[trainL], numpy.asarray(tCList)[testL], numpy.asarray(y)[trainL], numpy.asarray(y)[testL]
+            scaler = preprocessing.StandardScaler().fit(X_train) # create feature scaling values using training set
+            X_train_transformed = scaler.transform(X_train) # scale training set
+            X_test_transformed = scaler.transform(X_test) # scale test set
+            classifier = OneVsRestClassifier(LinearDiscriminantAnalysis()) # one vs rest classifier for multi-class
+            y_score = classifier.fit(X_train_transformed, y_train).decision_function(X_test_transformed)
+            fpr = dict()
+            tpr = dict()
+            roc_auc = dict() # roc area under curve
+            for i in range(n_classes):
+                fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
+                roc_auc[i] = auc(fpr[i], tpr[i])
+                
+            fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
+            roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+            all_fpr = numpy.unique(numpy.concatenate([fpr[i] for i in range(n_classes)]))
+            
+            mean_tpr = numpy.zeros_like(all_fpr)
+            for i in range(n_classes):
+                mean_tpr += numpy.interp(all_fpr, fpr[i], tpr[i])
+                
+            mean_tpr /= n_classes
+            
+            fpr["macro"] = all_fpr
+            tpr["macro"] = mean_tpr
+            roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+            
+            # add trace for micro and macro averages
+            trace1 = Scatter(x=fpr["micro"],y=tpr["micro"],name=('Micro-average ROC curve fold {} (area = {:03.2f})').format(index, roc_auc["micro"]),mode='lines')                
+            fig.append_trace(trace1, 1, 1)
+            trace2 = Scatter(x=fpr["macro"],y=tpr["macro"],name=('Macro-average ROC curve fold {} (area = {:03.2f})').format(index, roc_auc["macro"]),mode='lines')
+            fig.append_trace(trace2, 1, 1)
+            
+        
+        trace1 = Scatter(x=[0,1],y=[0,1],name='Chance',mode='lines') # add diagonal line for change
+        fig.append_trace(trace1, 1, 1)
+        
+        title = 'Cross-validation Receiver Operating Characteristic'
+        xaxis = dict(title='False Positive Rate')
+        yaxis = dict(title='True Positive Rate')
+        fig['layout'].update(title=title, xaxis=xaxis, yaxis=yaxis)
+        saveName = '6fold_cv_roc'
+        py.offline.plot(fig, filename=saveName)
+            
+# class variables      
+trainGroupings = list()    
+validGroupings = list()
+testGroupings = list()
+keys = list()   

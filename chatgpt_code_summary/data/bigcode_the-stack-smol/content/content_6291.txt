@@ -1,0 +1,13 @@
+#--- Exercício 1  - Funções - 1
+#--- Escreva uma função que imprima um cabeçalho
+#--- O cabeçalho deve ser escrito usando a multiplicação de carácter 
+#--- resultado esperado: -------------- Cadastro Serasa --------------------------
+#--- O cabeçalho deve conter o nome de uma empresa, que será uma variável
+#--- Realize a chamada da função na ultima linha do seu programa
+
+nome_empresa = input("Insira o nome da empresa: ")
+
+def imprimir_cabecalho():
+    print("-" *10 , "Cadastro", nome_empresa, "-" *10  )
+
+imprimir_cabecalho()

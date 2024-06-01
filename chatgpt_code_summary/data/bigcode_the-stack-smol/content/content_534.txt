@@ -1,0 +1,20 @@
+# -*- coding: utf-8 -*-
+import warnings
+
+# warnings.filterwarnings("ignore")  # 抑制告警，并指定采取的措施
+warnings.warn("# This is a test warning 111.")
+print("Hello One")
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)  # 抑制特定类型的警告
+warnings.warn("# This is a test warning 222.", DeprecationWarning)  # 被抑制
+warnings.warn("# Something else.")  # 未被抑制
+print("Hello Two")
+
+warnings.filterwarnings("error")  # 将警告转换为错误
+warnings.warn("# This is a test warning 333.", DeprecationWarning)  # 指定引发的异常
+print("Hello Three")
+
+# ### 警告
+# 警告不是异常，不影响程序的运行，可用于指示程序的状态；
+# 可根据异常来过滤掉特定类型的警告；
+# 发出警告时，可指定引发的异常（告警类别必须是Warning的子类）；

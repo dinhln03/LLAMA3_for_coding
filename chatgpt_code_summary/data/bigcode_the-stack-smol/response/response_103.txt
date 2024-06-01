@@ -1,0 +1,3 @@
+The provided Python code includes functions for simplex projection and related testing. The `_projection_simplex` function projects a vector onto a simplex defined by a scalar z. It sorts the vector, calculates cumulative sums, finds specific indexes, theta, and finally projects the vector. 
+
+The `test_projection_simplex` function utilizes random data to test the projection function. It compares the results of the projection function with a previous implementation for various cases, such as different axes and vector z inputs, ensuring the correctness of the projection. The `assert_array_almost_equal` function is used to validate the outputs.

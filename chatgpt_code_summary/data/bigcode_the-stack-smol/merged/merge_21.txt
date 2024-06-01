@@ -1,0 +1,26 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script defines functions to handle setup and teardown tasks before and after testing scenarios based on a specified test type. It uses the subprocess and time modules to run commands in the system shell. The `before_scenario` function starts a process using 'make start' command when the TEST_TYPE is 'bdd' and sets up a root URL for testing. In the `after_scenario` function, it terminates the started process if the test type is 'bdd'. The TEST_TYPE is determined using the environment variable TEST_TYPE, defaulting to 'bdd' if not specified. } [/INST] { import subprocess
+import time
+
+import os
+
+TEST_TYPE = os.getenv("TEST_TYPE", "bdd")
+
+
+def before_scenario(context, scenario):
+    if f"{TEST_TYPE}" == "bdd":
+        proc = subprocess.Popen(["make", "start"])
+        time.sleep(4)
+        context.proc = proc
+        context.root_url = "http://localhost:5000"
+    else:
+        context.root_url = os.getenv("ROOT_ENDPOINT")
+
+
+def after_scenario(context, scenario):
+    if f"{TEST_TYPE}" == "bdd":
+        proc = context.proc
+        proc.terminate() }
+</s>

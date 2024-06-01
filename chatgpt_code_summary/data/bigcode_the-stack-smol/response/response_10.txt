@@ -1,0 +1,7 @@
+This Python script provides a command-line interface to create a style guide for CSS/LESS/SASS. 
+
+1. It imports necessary modules like argparse, logging, pprint, guide, and settings.
+2. Defines a CLI function that sets up argument parsing for settings file and log level.
+3. Parses the arguments provided by the user, initializes logging with the specified log level, and configures markdown logging if the log level is not DEBUG.
+4. Uses the settings file specified by the user or defaults to 'vitalstyles.json' to create a style guide.
+5. If the script is executed directly (not as a module), it runs the CLI function to generate the style guide based on the provided settings.

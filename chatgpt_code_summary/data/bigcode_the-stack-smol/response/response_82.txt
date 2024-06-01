@@ -1,0 +1,4 @@
+This Python code defines a class `SearchInsertPosition` with a method `searchInsert` that takes a sorted array `nums` and a target value `target`. If the target is found in the array, the method returns the index. If the target is not found, it returns the index where the target would be inserted to maintain the order. 
+- If `nums` is empty, it returns 0. 
+- It then iterates through `nums` to find the appropriate index for `target` based on its value compared to elements in the array. 
+- If the target is not found and should be inserted in between elements, the method returns the index where it should be inserted.

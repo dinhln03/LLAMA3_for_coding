@@ -1,0 +1,26 @@
+# -*- coding: utf-8 -*-
+from dfa import *
+"""
+Created on Mon Apr  1 09:50:10 2019
+
+@author: Savio
+"""
+
+#Example of a simple DFA
+#DFA only accepts odd-sized string
+states = {0, 1}
+alphabet = {'0','1'}
+transition =	{
+  (0, '0'): 1,
+  (0, '1'): 1,
+  (1, '0'): 0,
+  (1, '1'): 0,
+}
+start_state = 0
+accept_states = {1}
+dfa1 = DFA(states, alphabet, transition, start_state, accept_states)
+
+string = list('010') #Accept
+#string= list('1010') #Reject
+
+print(dfa1.run(string))

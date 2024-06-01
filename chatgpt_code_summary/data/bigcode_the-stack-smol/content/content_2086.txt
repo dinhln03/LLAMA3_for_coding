@@ -1,0 +1,92 @@
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
+
+from tinymce import HTMLField
+# Create your models here.
+
+
+User = get_user_model()
+
+
+class PostView(models.Model):
+    user = models.ForeignKey(User, verbose_name=_(
+        "User"), on_delete=models.CASCADE)
+    post = models.ForeignKey('Post', verbose_name=_(
+        "Post"), on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.user.username
+
+
+class Author(models.Model):
+    user = models.OneToOneField(User, verbose_name=_(
+        "Author"), on_delete=models.CASCADE)
+    profile_picture = models.ImageField(_("Profile picture"))
+
+    def __str__(self):
+        return self.user.username
+
+
+class Category(models.Model):
+    title = models.CharField(_("Title"), max_length=50)
+
+    def __str__(self):
+        return self.title
+
+class Comment(models.Model):
+    user = models.ForeignKey(
+    User, verbose_name=_("User"), on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(_("Timestamp"), auto_now_add=True)
+    content = models.TextField(_("Comment text"))
+    post = models.ForeignKey('Post', verbose_name=_(
+        "Post"), related_name='comments', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.user.username
+
+
+class Post(models.Model):
+    title = models.CharField(_("Title"), max_length=50)
+    overview = models.TextField(_("Overview"))
+    timestamp = models.DateTimeField(
+        _("Timestamp"), auto_now=False, auto_now_add=True)
+    content = HTMLField()
+    # comment_count = models.IntegerField(_("Comment count"), default=0)
+    # view_count = models.IntegerField(_("View count"), default=0)
+    author = models.ForeignKey(Author, verbose_name=_(
+        "Author"), on_delete=models.CASCADE)
+    thumbnail = models.ImageField(_("Thumbnail"))
+    categories = models.ManyToManyField(Category, verbose_name=_("Categories"))
+    featured = models.BooleanField(_("Featured"), default=False)
+    previous_post = models.ForeignKey("self", verbose_name=_(
+        "Previous post"), related_name='previous', 
+        on_delete=models.SET_NULL, blank=True, null=True)
+    next_post = models.ForeignKey("self", verbose_name=_(
+        "Next post"), related_name='next', 
+        on_delete=models.SET_NULL, blank=True, null=True)
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse("post-detail", kwargs={"pk": self.pk})
+
+    def get_update_url(self):
+        return reverse("post-update", kwargs={"pk": self.pk})
+
+    def get_delete_url(self):
+        return reverse("post-delete", kwargs={"pk": self.pk})
+
+    @property
+    def get_comments(self):
+        return self.comments.all().order_by('-timestamp')
+
+    @property
+    def comment_count(self):
+        return Comment.objects.filter(post=self).count()
+
+    @property
+    def view_count(self):
+        return PostView.objects.filter(post=self).count()

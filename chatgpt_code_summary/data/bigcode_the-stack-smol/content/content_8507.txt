@@ -1,0 +1,30 @@
+import urllib.request, urllib.parse, urllib.error
+import json
+
+url = input('Web page: ')
+
+print('Retrieving', url)
+uh = urllib.request.urlopen(url)
+data = uh.read().decode()
+
+info = json.loads(data)
+# info é um dict do tipo:
+# {'note': 'This file contains the sample data for testing', 'comments': [{'name': 'Romina', 'cou ...
+
+# * print(info['comments'])
+# a primeira subdivisao é entre 'notes' e 'comments' 
+
+total = list()
+for item in info['comments']:
+# *    print(item)
+#      cada item é um dict com 'name' e 'count'
+    total.append(int(item['count']))
+
+
+    
+
+total2 = [int(item['count']) for item in info['comments']]
+
+# list Comprehensions é mais legal
+
+print(sum(total2))

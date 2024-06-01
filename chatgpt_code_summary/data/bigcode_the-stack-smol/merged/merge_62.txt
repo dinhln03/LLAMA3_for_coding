@@ -1,0 +1,38 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script defines a test suite for end-to-end (E2E) testing of authorization functionality using a remote API. It utilizes the `unittest` framework. The code initializes a client with a token, then has three test methods: 
+1. `test_list_and_get_authorization`: Lists authorizations and retrieves details for each.
+2. `test_list_with_parameters`: Lists authorizations with specific parameters.
+3. `test_list_with_wrong_parameters`: Lists authorizations with intentionally incorrect parameters to test error handling. Finally, it runs the test suite when executed. The tests validate that the data retrieved from the API meets certain criteria. } [/INST] { import os
+import unittest
+from unit import Unit
+from unit.models.authorization import *
+
+
+class AuthorizationsE2eTests(unittest.TestCase):
+    token = os.environ.get("token")
+    client = Unit("https://api.s.unit.sh", token)
+
+    def test_list_and_get_authorization(self):
+        authorizations = self.client.authorizations.list()
+        for authorization in authorizations.data:
+            response = self.client.authorizations.get(authorization.id)
+            self.assertTrue(response.data.type == "authorization")
+
+    def test_list_with_parameters(self):
+        params = AuthorizationListParams(10, 0, "", "49423")
+        authorizations = self.client.authorizations.list(params)
+        for authorization in authorizations.data:
+            response = self.client.authorizations.get(authorization.id)
+            self.assertTrue(response.data.type == "authorization")
+
+    def test_list_with_wrong_parameters(self):
+        params = AuthorizationListParams(10, 0, "", "-1")
+        response = self.client.authorizations.list(params)
+        self.assertTrue(response.data == [])
+
+
+if __name__ == '__main__':
+    unittest.main() }
+</s>

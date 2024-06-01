@@ -1,0 +1,7 @@
+This Python code defines classes and methods for computing various technical analysis indicators typically used in trading applications. 
+
+- The `Recommendation` class holds different recommendation levels like "BUY", "SELL", "NEUTRAL", "STRONG_BUY", "STRONG_SELL", and "ERROR".
+- The `Compute` class contains methods to calculate specific indicators such as Moving Average, Relative Strength Index, Stochastic, CCI 20, ADX, Awesome Oscillator, Momentum, MACD, Bull Bear Buy/Sell, Parabolic SAR, General Recommendations, and Simple Recommendations. 
+- Each method takes specific input values related to the indicator and returns a recommendation based on the calculations.
+
+These functions allow users to analyze data and receive trading recommendations based on the defined strategies for each indicator.

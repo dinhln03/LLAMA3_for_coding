@@ -1,0 +1,105 @@
+#coding=utf-8
+#
+# Created on Apr 23, 2014, by Junn
+# 
+#
+
+import json
+
+from django.http import HttpResponse
+from django.shortcuts import render_to_response
+from django.template.context import RequestContext
+
+from rest_framework.response import Response as RfResponse
+
+from core import codes
+import urllib
+import httplib
+import requests
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+def request_file(url):
+    '''从远端下载文件, 并构建request.FILES中的uploaded file对象返回. 
+    @param url:  文件url路径, 如http://abc.im/12345.jpg
+    
+    @return: SimpleUploadedFile object, it is containned by the request.FILES(dictionary-like object) 
+    '''
+    if not url:
+        return
+    
+    response = requests.get(url)
+    return SimpleUploadedFile('file', response.content)    
+
+def send_request(host, send_url, method='GET', port=80, params={}, timeout=30, 
+                 headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}):
+    
+    '''发起http请求. 执行结果返回响应字符串
+    
+    @param: The sample parameters format like following: 
+        params = {'token': 'dF0zeqAPWs'}
+        headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
+        host = 'fir.im'
+        port = 80
+        method = 'GET'
+        send_url = '/api/v2/app/version/541a7131f?token=dF0zeqBMXAP'
+    '''
+    
+    encoded_params = urllib.urlencode(params)
+    conn = httplib.HTTPConnection(host, port=port, timeout=timeout)
+    conn.request(method, send_url, encoded_params, headers)
+    response = conn.getresponse()
+    response_str = response.read()
+    conn.close()
+    
+    return response_str
+
+class JResponse(HttpResponse):
+    '''for simple dict response, like success and failed, etc'''
+
+    def __init__(self, result, status=200, *args, **kwargs):
+        if not isinstance(result, list):
+            if 'errors' in result.keys():
+                dt = result.pop('errors', {}) or {}
+                result['msg'] = ''.join([e[0] for e in dt.values()])
+        super(JResponse, self).__init__(
+            json.dumps(result), status=status, mimetype='application/json', *args, **kwargs
+        )
+
+
+def standard_response(template, req, context):
+    '''返回http Web response'''
+    return render_to_response(template, RequestContext(req, context))
+
+class Response(RfResponse):
+    '''for object json response'''
+    
+    def __init__(self, data, *args, **kwargs):
+        if isinstance(data, dict) and 'code' in data.keys(): #data为dict, 且已有code则无需再添加code返回
+            super(Response, self).__init__(data, *args, **kwargs)
+        else:
+            super(Response, self).__init__(codes.append('ok', {'data': data}), *args, **kwargs)
+            
+            
+## 注: 此必须声明为函数, 不可声明为常量. 常量值将只在模块import时被赋值
+
+def ok(data={}):
+    '''data为字典类型数据'''
+    return JResponse(codes.append('ok', data)) if data else resp('ok')
+
+def failed(msg=''):
+    return resp('failed', msg)
+
+def object_not_found():
+    return resp('object_not_found')
+
+def http404():
+    return resp('not_found')
+
+def resp(crr, msg=''):
+    '''返回常量错误码. msg可格式化具有占位符的字符串
+    
+    params:
+        @crr  错误码标识
+    '''
+    return JResponse(codes.fmat(crr, msg))
+

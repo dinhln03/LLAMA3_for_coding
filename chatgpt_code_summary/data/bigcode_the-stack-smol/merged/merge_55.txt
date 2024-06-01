@@ -1,0 +1,17 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python script serves as the main package module for launching Editra. It imports essential base modules into the namespace. The script provides essential author and licensing information. The purpose of this script is to prepare the required modules for launching the Editra application. The author of the script is Cody Precord <cprecord@editra.org>, and it is copyrighted under Cody Precord. The script mainly serves as an initialization file for the Editra application, setting up basic information and importing necessary modules for the program to run. } [/INST] { ###############################################################################
+# Name: __init__.py                                                           #
+# Purpose: Import the required base modules needed for launching Editra into  #
+#          into the namespace.                                                #
+# Author: Cody Precord <cprecord@editra.org>                                  #
+# Copyright: (c) 2007 Cody Precord <staff@editra.org>                         #
+# Licence: wxWindows Licence                                                  #
+###############################################################################
+"""Main package module"""
+
+__author__ = "Cody Precord <cprecord@editra.org>"
+__svnid__ = "$Id: __init__.py 49807 2007-11-10 07:08:33Z CJP $"
+__revision__ = "$Revision: 49807 $" }
+</s>

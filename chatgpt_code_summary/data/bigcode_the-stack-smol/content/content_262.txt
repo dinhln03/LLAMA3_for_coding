@@ -1,0 +1,150 @@
+# source ./venv/bin/activate
+
+# ===============================================================
+# =============================COOL==============================
+# ===============================================================
+
+import sys
+from general import errors
+
+# import os
+# basedir = os.path.abspath(os.path.dirname(__file__))
+
+
+# ===============================================================
+
+
+def main():
+    # TAKE THE INPUT
+    programs = sys.argv[1:]
+
+    # CHECK IF AT LEAST ONE FILE IS GIVEN
+    if len(programs) == 0:
+            errors.throw_error(errors.CompilerError(text="No file is given to coolc compiler."))
+
+    # CHECK IF FILEOUT IS GIVEN
+    if programs[0] == '-o':
+        if len(programs) == 1:
+            errors.throw_error(errors.CompilerError(text="No fileout is given to coolc compiler."))
+        fileout = programs[1]
+        if not str(fileout).endswith(".asm"):
+            errors.throw_error(errors.CompilerError(text="Fileout must end with .asm extension."))
+        if len(programs) == 2:
+            errors.throw_error(errors.CompilerError(text="No file is given to coolc compiler."))
+        programs = programs[2:]
+    else:
+        fileout = programs[0].split(".cl")[0] + ".asm"
+
+    # Check all programs have the *.cl extension.
+    for program in programs:
+        if not str(program).endswith(".cl"):
+            errors.throw_error(errors.CompilerError(text="Cool program files must end with a .cl extension."))
+    
+    code = ""
+    # Read all program source codes.
+    for program in programs:
+        try:
+            with open(program, encoding="utf-8") as file:
+                code += file.read() + '\n'
+        except (IOError, FileNotFoundError):
+            errors.throw_error(errors.CompilerError(text=f'File "{program}" was not found.'))
+        except Exception:
+            errors.throw_error(errors.CompilerError(text="An unexpected error occurred!"))
+
+    print(f"Compiling file '{fileout}'...")
+
+    # ===============================================================
+    # ==================ANALISIS-LEXICOGRAFICO=======================
+    # ===============================================================
+
+    from lexicography.lexer_rules import CoolLex
+
+    # BUILD THE LEXER
+    lexer = CoolLex()
+    lexer.build()
+
+    # ===============================================================
+
+
+    # ===============================================================
+    # =====================ANALISIS-SINTACTICO=======================
+    # ===============================================================
+
+    from lexicography.grammar_rules import CoolParse
+
+    # BUILD THE PARSER
+    parser = CoolParse(lexer)
+    parser.build()
+    
+    program_ast = parser.parse(code)
+
+    # ===============================================================
+
+
+    # ===============================================================
+    # ======================ANALISIS-SEMANTICO=======================
+    # ===============================================================
+
+    from semantic.type_collector import TypeCollectorVisitor
+    from semantic.type_builder import TypeBuilderVisitor
+    from semantic.type_checker import TypeCheckerVisitor
+    # from semantic.ast_types_painter import Painter
+
+    typeCollector = TypeCollectorVisitor()
+    typeCollector.visit(program_ast)
+
+    typeBuilder = TypeBuilderVisitor(typeCollector.enviroment)
+    typeBuilder.visit(program_ast)
+
+    ## CHECK SEMANTIC ERRORS IN THE ENVIROMENT(check_main, cycles and inheritance rules)
+    final_enviroment = typeBuilder.enviroment
+    final_enviroment.build_types_graph()
+
+    type_checker = TypeCheckerVisitor()
+    type_checker.visit(program_ast, typeBuilder.enviroment)
+
+    typed_ast = program_ast
+
+    # ast_painter = Painter()
+    # print(ast_painter.visit(typed_ast, 0))
+
+
+    # ===============================================================
+
+
+    # ===============================================================
+    # ========================CODE-GENERATION========================
+    # ===============================================================
+
+    # COOL --> CIL
+
+    from generation.cil.cil_generator import CilGeneratorVisitor
+    # from general.cil_hierarchy import get_formatter
+
+    cil_code_generator = CilGeneratorVisitor(typed_ast, typeBuilder.enviroment)
+    ast_cil = cil_code_generator.generate_code()
+
+    # cil_painter = get_formatter()
+    # print(cil_painter(ast_cil))
+
+    # CIL --> MIPS
+
+    from generation.mips.mips_writer import MIPSWriterVisitor
+    from operator import itemgetter
+
+    types_ids = typeBuilder.enviroment.types_dict
+    hierarchy = [0]*len(types_ids)
+    for _type in typeBuilder.enviroment.types_list[1:]:
+        hierarchy[types_ids[_type.name]] = types_ids[_type.parent]
+
+    # tag_names = sorted(types_ids.items(), key=itemgetter(1))
+
+    ast_cil.typesHierarchy = hierarchy
+    # ast_cil.tag_names = tag_names
+    mips_code_generator = MIPSWriterVisitor(ast_cil, fileout)
+    mips_code_generator.generate_Mips()
+
+
+
+if __name__ == '__main__':
+    main()

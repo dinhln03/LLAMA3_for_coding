@@ -1,0 +1,19 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code extracts vulnerability information for a given application from the National Vulnerability Database (NVD). The script takes the application name as a command line argument, retrieves search results for vulnerabilities related to that application from the NVD website, extracts Common Vulnerabilities and Exposures (CVE) IDs, and then for each CVE ID, fetches and extracts Common Platform Enumeration (CPE) information. Finally, it outputs the first CPE information found for the application in the format "{application_name}.tb:{cpe_info}". The code is meant to automate the retrieval and parsing of vulnerability data for a specific application. } [/INST] { from sys import argv
+
+from requests import get
+import re
+
+app_name = argv[1]
+result = get('https://nvd.nist.gov/view/vuln/search-results?query={0}'.format(app_name))
+cves = re.findall(r"CVE-\d{4}-\d+", result.text)
+
+for cve in reversed(cves):
+    result = get('https://nvd.nist.gov/vuln/detail/' + cve)
+    cpes = re.findall(r">(cpe.*?)</a>", result.text)
+    if cpes:
+        print("{0}.tb:{1}".format(app_name, cpes[0]))
+    break }
+</s>

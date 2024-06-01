@@ -1,0 +1,18 @@
+SUMMARIES = {
+    'git-adjust': 'Amend any commit, not just the last',
+    'git-copy': 'Copy a git branch locally and remotely',
+    'git-delete': 'Delete one or more branches locally and remotely',
+    'git-gitz': 'Print information about the gitz git commands',
+    'git-go': 'Go to a specific location in the current repo',
+    'git-infer': 'Commit changes with an auto-generated message',
+    'git-multi-pick': 'Cherry-pick multiple commits, with an optional squash',
+    'git-new': 'Create and push new branches',
+    'git-permute': 'Reorder and delete commits in the current branch',
+    'git-rename': 'Rename a git branch locally and remotely',
+    'git-rot': 'Rotate through branches in a Git repository',
+    'git-split': 'Split a range of commits into many single-file commits',
+    'git-st': 'Colorful, compact git status',
+    'git-stripe': 'Push a sequence of commit IDs to a remote repository',
+    'git-update': 'Update branches from a reference branch',
+    'git-when': 'When did each file change (date, commit, message)?',
+}

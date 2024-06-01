@@ -1,0 +1,23 @@
+from eingabe import EinsatzstoffeEingabe
+from ausgabe import *
+from verarbeitung import *
+from plannung import *
+
+if __name__ == '__main__':
+    eingabe1 = EinsatzstoffeEingabe(100000, "Erz", "Indien")
+    eingabe2 = EinsatzstoffeEingabe(59000, "Kochen", "Rumänien")
+
+    ausgabe1 = ProzessAusgabe(100, 200, "Schienen")
+    ausgabe2 = ProzessAusgabe(300, 1200, "Rohre")
+
+    verarbeitung0 = StahlVerarbeitung(1, "Walzwerk", 4)
+    verarbeitung1 = VorVerarbeitung(1, "Walzwerk", 2, ausgabe1)
+    verarbeitung2 = HauptVerarbeitung(1, "Stahlwerk", 3, ausgabe2)
+
+    verarbeitung0.getSchrittDauer()
+    verarbeitung1.getSchrittDauer()
+    verarbeitung2.getSchrittDauer()
+
+    plannung1 = StahlProzessPlannung(2, "Vorverarbeitung", verarbeitung1)
+    plannung2 = StahlProzessPlannung(2, "Hauptverarbeitung", verarbeitung2)
+

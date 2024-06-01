@@ -1,0 +1,118 @@
+from django.db import models
+from django.contrib.auth.models import (
+    BaseUserManager, AbstractBaseUser, Group
+)
+from phonenumber_field.modelfields import PhoneNumberField
+
+# For the signal
+from django.dispatch import receiver
+from django.urls import reverse
+from django.core.mail import send_mail
+from django_rest_passwordreset.signals import reset_password_token_created
+
+
+@receiver(reset_password_token_created)
+def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
+
+    email_plaintext_message = "{}?token={}".format(
+        reverse('password_reset:reset-password-request'), reset_password_token.key)
+
+    send_mail(
+        # title:
+        "Password Reset for {title}".format(title="Some website title"),
+        # message:
+        email_plaintext_message,
+        # from:
+        "noreply@somehost.local",
+        # to:
+        [reset_password_token.user.email]
+    )
+
+
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, password=None):
+        if not email:
+            raise ValueError('Users must have an email address')
+
+        user = self.model(
+            email=self.normalize_email(email),
+        )
+
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None):
+        user = self.create_user(
+            email,
+            password=password,
+        )
+        user.is_admin = True
+        user.is_staff = True
+        user.save(using=self._db)
+        return user
+
+
+class User(AbstractBaseUser):
+    email = models.EmailField(
+        verbose_name='email address',
+        max_length=255,
+        unique=True,
+    )
+    is_active = models.BooleanField(default=True)
+    is_admin = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)
+
+    USERNAME_FIELD = 'email'
+
+    objects = CustomUserManager()
+
+    class Meta:
+        ordering: ['-createdAt']
+        verbose_name_plural = "Users"
+
+    def __str__(self):
+        return self.email
+
+    def has_perm(self, perm, obj=None):
+        "Does the user have a specific permission?"
+        # Simplest possible answer: Yes, always
+        return True
+
+    def has_module_perms(self, app_label):
+        "Does the user have permissions to view the app `app_label`?"
+        # Simplest possible answer: Yes, always
+        return True
+
+
+class UserProfile(models.Model):
+    GENDER = (
+        ('M', "Male"),
+        ('F', "Female"),
+    )
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        primary_key=True,
+    )
+    firstName = models.CharField(max_length=100)
+    lastName = models.CharField(max_length=100)
+    phone = PhoneNumberField(null=False, blank=False, unique=True)
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering: ['-createdAt']
+        verbose_name_plural = "UserProfiles"
+
+    def userEmail(self):
+        email = self.user.email
+        return email
+
+    def fullName(self):
+        return f'{self.firstName} {self.lastName}'
+
+    def __str__(self):
+        return self.fullName()

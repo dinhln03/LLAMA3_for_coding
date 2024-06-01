@@ -1,0 +1,18 @@
+# -*- coding: utf-8 -*-
+"""
+"""
+
+from ill import api
+
+tn = api.request_document('8236596')
+print(tn)
+
+#api.download_papers()
+
+#NOT YET IMPLEMENTED
+#Not downloaded
+#api.delete_online_papers(api.downloaded_paper_ids)
+
+#main.fill_form('610035')
+
+print('Done with the request')

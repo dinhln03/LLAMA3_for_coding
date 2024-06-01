@@ -1,0 +1,18 @@
+<s>[INST] <<SYS>>
+{ You are an expert in programming, particularly in Python. Your task is to explain complex code snippets succinctly. Focus on providing clear, concise instructions that describe what the code does and how it works, suitable for use in training a code generation model. }
+<</SYS>>
+{ This Python code snippet imports various utility functions from a module named "util." The functions include calculating Root Mean Square (rms), moving average, moving average with convolution, moving average with Fast Fourier Transform (FFT), normalization, finding the next power of 2, trimming top and tail elements, extrapolation, nearest neighbor search, handling deprecated functions, applying a function along an axis, sigmoid function, power function, and root function. These functions help in data processing, signal analysis, and mathematical operations. } [/INST] { from .util import rms
+from .util import moving_average
+from .util import moving_avg_conv
+from .util import moving_avg_fft
+from .util import normalize
+from .util import next_pow2
+from .util import top_and_tail
+from .util import extrapolate
+from .util import nearest
+from .util import deprecated
+from .util import apply_along_axis
+from .util import sigmoid
+from .util import power
+from .util import root }
+</s>

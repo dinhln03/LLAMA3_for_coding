@@ -1,0 +1,67 @@
+# Copyright © 2020 Hashmap, Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import os
+import uuid
+
+from hdm.core.error.hdm_error import HDMError
+from hdm.core.orchestrator.orchestrator import Orchestrator
+from hdm.core.sink.sink import Sink
+from hdm.core.source.source import Source
+from hdm.core.utils.parse_config import ParseConfig
+from hdm.data_link import DataLink
+from hdm.data_link_builder import DataLinkBuilder
+
+
+class DeclaredOrchestrator(Orchestrator):
+    """This is an orchestrator which build DataLinks and will run them as defined - they must be fully defined."""
+
+    def run_pipelines(self):
+        _ = [hdm.run() for hdm in self._data_links]
+
+    def _build_data_links(self):
+        config = ParseConfig.parse(config_path=os.getenv('HDM_MANIFEST'))
+        state_manager_config = config['state_manager']
+        manifest_name = os.getenv('HDM_MANIFEST')[os.getenv('HDM_MANIFEST').rindex("/")+1:]
+        run_id = uuid.uuid4().hex
+
+        for link_config in config['declared_data_links']['stages']:
+
+            # Create New State Manager
+            link_state = self._generate_state_manager(state_manager_config=state_manager_config,
+                                                      data_link_config=link_config,
+                                                      manifest_name=manifest_name,
+                                                      run_id=run_id)
+
+            # Add the state manager to the sink and source
+            link_config['source']['conf']['state_manager'] = link_state
+            link_config['sink']['conf']['state_manager'] = link_state
+
+            source = DataLinkBuilder.build_source(link_config['source'])
+            if not isinstance(source, Source):
+                error = f'Source {type(source)} is not a Source.'
+                self._logger.error(error)
+                raise HDMError(error)
+
+            sink = DataLinkBuilder.build_sink(link_config['sink'])
+            if not isinstance(sink, Sink):
+                error = f'Sink {type(sink)} is not a Sink.'
+                self._logger.error(error)
+                raise HDMError(error)
+
+            self._data_links.append(
+                DataLink(
+                    source=source,
+                    sink=sink
+                )
+            )

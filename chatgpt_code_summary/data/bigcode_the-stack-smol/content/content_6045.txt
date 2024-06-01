@@ -1,0 +1,181 @@
+# -*- coding: utf-8 -*-
+
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWebEngineWidgets import *
+from PyQt5.QtWebChannel import QWebChannel
+from PyQt5 import Qt
+import json
+import sys
+import time
+import random
+import threading
+import os
+
+ConfigData = {}
+label = None
+
+class CallHandler(QObject):
+
+    def __init__(self):
+        super(CallHandler, self).__init__()
+
+    @pyqtSlot(str, result=str)  # 第一个参数即为回调时携带的参数类型
+    def init_home(self, str_args):
+        print('call received')
+        print('resolving......init home..')
+        print(str_args)
+        return 'hello, Python'
+
+class AdminMain(QWidget):
+    def __init__(self, parent=None):
+        self.m_flag = False
+        super(AdminMain, self).__init__(parent)
+        self.setWindowTitle("VegeTableT")
+        self.setWindowIcon(QIcon("./evol/logo.ico"))
+        self.setAttribute(Qt.Qt.WA_TranslucentBackground)
+        self.setContextMenuPolicy(Qt.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.close)
+        self.setWindowFlags(Qt.Qt.FramelessWindowHint |
+                            Qt.Qt.Tool | Qt.Qt.WindowStaysOnTopHint)
+        self.moveToRight()
+        flo = QFormLayout()
+        rnbtn = QPushButton('随机提问')
+        rnbtn.setObjectName('bluebutton')
+        self.wd = Random_name()
+        channel = QWebChannel()
+        cnobj = CallHandler()
+        channel.registerObject('bridge', cnobj)
+        self.wd.browser.page().setWebChannel(channel)
+        rnbtn.clicked.connect(self.startRandomName)
+        flo.addRow(rnbtn)
+
+        self.setLayout(flo)
+
+    def kbtoggle(self):
+        print(24333)
+
+    def moveToRight(self):
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().topLeft()
+        qr.moveTopRight(cp)
+        self.move(qr.topRight())
+
+    def startRandomName(self):
+        self.wd.showwidget()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.Qt.LeftButton:
+            self.m_flag = True
+            self.m_Position = event.globalPos()-self.pos()
+            event.accept()
+            self.setCursor(QCursor(Qt.Qt.OpenHandCursor))
+
+    def mouseMoveEvent(self, QMouseEvent):
+        if Qt.Qt.LeftButton and self.m_flag:
+            self.move(QMouseEvent.globalPos()-self.m_Position)
+            QMouseEvent.accept()
+
+    def mouseReleaseEvent(self, QMouseEvent):
+        self.m_flag = False
+        self.setCursor(QCursor(Qt.Qt.ArrowCursor))
+
+
+class AboutThis(QMainWindow):
+    def __init__(self):
+        super(AboutThis, self).__init__()
+        self.setWindowTitle('关于随机提问')
+        self.setWindowIcon(QIcon("./evol/logo.ico"))
+        self.setWindowFlags(Qt.Qt.WindowStaysOnTopHint)
+        self.resize(600, 571)
+        self.browser = QWebEngineView()
+        #加载外部的web界面
+        self.browser.load(
+            QUrl(QFileInfo("./evol/about.html").absoluteFilePath()))
+        self.setCentralWidget(self.browser)
+
+    def showwidget(self):
+        self.show()
+
+class Random_name(QMainWindow):
+    def __init__(self):
+        super(Random_name, self).__init__()
+        self.setWindowTitle('随机提问')
+        self.setWindowIcon(QIcon("./evol/logo.ico"))
+        self.setWindowFlags(Qt.Qt.WindowStaysOnTopHint |
+                            Qt.Qt.WindowCloseButtonHint)
+        self.resize(500, 471)
+        self.browser = QWebEngineView()
+        #加载外部的web界面
+        self.browser.load(
+            QUrl(QFileInfo("./evol/evol.html").absoluteFilePath()))
+        self.setCentralWidget(self.browser)
+
+    def showwidget(self):
+        global ConfigData
+        with open('./evol/data.json', 'r', encoding='utf8') as fp:
+            ConfigData = json.load(fp)
+        self.browser.page().runJavaScript('getData({})'.format(
+            json.dumps(ConfigData, sort_keys=True, indent=4, separators=(',', ':'))))
+        self.show()
+
+
+if __name__ == "__main__":
+
+    app = QApplication(sys.argv)
+    splash = QSplashScreen(QPixmap("./evol/start.png"))
+    splash.showMessage("orz lin_diex!", Qt.Qt.AlignHCenter |
+                       Qt.Qt.AlignBottom, Qt.Qt.black)
+    splash.show()
+    qApp.processEvents()
+    QApplication.setQuitOnLastWindowClosed(False)
+    win = AdminMain()
+
+    w = win
+    tp = QSystemTrayIcon(w)
+    tp.setIcon(QIcon('./evol/logo.ico'))
+    # 设置系统托盘图标的菜单
+    a1 = QAction('&显示', triggered=w.show)
+
+    def quitApp():
+        w.show()
+        re = QMessageBox.question(w, "提示", "是否退出?", QMessageBox.Yes |
+                                  QMessageBox.No, QMessageBox.No)
+        if re == QMessageBox.Yes:
+            QCoreApplication.instance().quit()
+            tp.setVisible(False)
+
+    def reConfig():
+        global ConfigData
+        with open('./evol/data.json', 'r', encoding='utf8') as fp:
+            ConfigData = json.load(fp)
+        with open('./evol/main.qss', 'r') as f:
+            w.setStyleSheet(f.read())
+
+    abthis = AboutThis()
+
+    def showAbout():
+        abthis.showwidget()
+
+    reConfig()
+    win.show()
+    splash.finish(win)
+    a2 = QAction('&退出', triggered=quitApp)
+    a3 = QAction('&关于', triggered=showAbout)
+    tpMenu = QMenu()
+    tpMenu.addAction(a1)
+    tpMenu.addAction(a3)
+    tpMenu.addAction(a2)
+    tp.setContextMenu(tpMenu)
+    tp.show()
+    #tp.showMessage('VegeTable Admin', '成功运行', icon=0)
+    #def clickMessage():
+    #    print("信息被点击了")
+    #tp.messageClicked.connect(clickMessage)
+
+    def act(reason):
+        if reason == 2 or reason == 3:
+            w.show()
+    tp.activated.connect(act)
+    sys.exit(app.exec_())

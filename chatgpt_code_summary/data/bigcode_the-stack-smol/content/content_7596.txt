@@ -1,0 +1,112 @@
+"""This is a python module containing a cog that implements commands that are
+used to manage messages in the server.
+
+e.g. "clear", delete all instances of a certain word, etc.
+"""
+
+import discord
+from discord.ext import commands
+
+import typing   # For optional parameters.
+import datetime # For comparing messages.
+
+
+class Message_Management(commands.Cog):
+    def __init__(self, client):
+        self._client = client
+        self._anchors = {}
+
+    
+    @commands.command(aliases = ["c"])
+    async def clear(self, ctx, amount: int = 5):
+        """Clear AMOUNT messages from chat. Default is 5. Also deletes
+        the message that invoked this command.
+
+        Usage: "clear <amount>"
+        """
+        # Delete the message that invoked this command.
+        await ctx.message.delete()
+        # Delete AMOUNT more messages.
+        await ctx.channel.purge(limit=amount)
+
+    @commands.command(aliases = ["cfu", "clear_user"])
+    async def clear_from_user(self, ctx, amount: typing.Optional[int]=5, *, username):
+        """Clear AMOUNT messages from a specific user. Also deletes the message
+        that invoked this command.
+
+        Usage: "clear <amount> <username>"
+
+        Username is the discord username, not server nickname.
+        """
+        # To keep track of how many messages we're searching through.
+        msgsSearched = 0
+        remaining = amount
+        # Delete the message that invoked this command.
+        await ctx.message.delete()
+        # Delete AMOUNT more messages from the user.
+        # Limit it to 1000 messages to prevent this from going on too long.
+        async for message in ctx.channel.history(limit=1000):
+            msgsSearched += 1
+            if message.author.name == username:
+                await message.delete()
+                remaining -= 1
+                if remaining == 0:
+                    break
+        else:
+            await ctx.send(f"There were less than {amount} messages from {username} in the last {msgsSearched} messages.")
+    
+    @commands.command(aliases=["adm"])
+    async def anchor_delete_manual(self, ctx):
+        """Delete the messages between two anchors."""
+        # Check if the current channel already has an anchor.
+        if ctx.channel.id in self._anchors:
+            # Delete every message between the invocation message
+            # and the anchor.
+            async for message in ctx.channel.history(limit=None):
+                if message.id == self._anchors[ctx.channel.id]:
+                    await message.delete()  # Delete the message.
+                    del self._anchors[ctx.channel.id]   # Remove the anchor.
+                    # Break from the loop, since we are done deleting.
+                    break
+                else:
+                    await message.delete()
+        else:   # New anchors for this channel.
+            self._anchors[ctx.channel.id] = ctx.message.id
+
+    @commands.command(aliases=["adc"])
+    async def anchor_delete_choice(self, ctx, bottom: int, top: int):
+        """Given the message ID's for two messages, delete all messages between them."""
+        # Fetch the two messages.
+        bottom_msg = await ctx.channel.fetch_message(bottom)
+        top_msg = await ctx.channel.fetch_message(top)
+        # Compare the messages to ensure the bottom anchor is younger.
+        if not bottom_msg.created_at > top_msg.created_at:
+            await ctx.send("Bottom anchor must come after top anchor.")
+            return # End the function.
+        # If that check passed, delete every message between the two.
+        anchored = False
+        num_deleted = 0
+        async for message in ctx.channel.history(limit=None):
+            # Start the deletion if we find the bottom anchor.
+            if message.id == bottom:
+                anchored = True
+                await message.delete()
+                num_deleted += 1
+                continue
+
+            if anchored:
+                num_deleted += 1
+                await message.delete()
+            
+            if message.id == top:   # If we find the top anchor, stop deleting.
+                anchored = False
+                break
+        
+        # After deleting, print out how many messages were deleted,
+        # and delete the invocation message.
+        await ctx.send(f"Deleted {num_deleted} messages.")
+        await ctx.message.delete()
+
+
+def setup(client):
+    client.add_cog(Message_Management(client))

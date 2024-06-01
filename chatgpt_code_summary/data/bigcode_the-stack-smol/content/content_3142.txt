@@ -1,0 +1,98 @@
+import logging
+import urllib.request
+from datetime import datetime
+from multiprocessing import Manager, Value
+from multiprocessing.pool import ThreadPool
+
+
+class EntryPoint:
+    Log = logging.getLogger(__name__)
+
+    def __init__(self):
+        self.__total_size = Value('i', 0)
+        self.__sizes_by_file = Manager().dict()
+
+    def main(self):
+        urls = ['https://code.jquery.com/jquery-git.js',
+                'https://code.jquery.com/jquery-3.1.0.js',
+                'https://code.jquery.com/jquery-3.0.0.js',
+                'https://code.jquery.com/jquery-2.2.0.js',
+                'https://code.jquery.com/jquery-2.1.0.js',
+                'https://code.jquery.com/jquery-2.0.0.js',
+                'https://code.jquery.com/jquery-1.12.0.js',
+                'https://code.jquery.com/jquery-1.11.0.js',
+                'https://code.jquery.com/jquery-1.10.0.js',
+                'https://code.jquery.com/jquery-1.9.0.js',
+                'https://code.jquery.com/jquery-1.7.0.js',
+                'https://code.jquery.com/jquery-1.6.js',
+                'https://code.jquery.com/jquery-1.5.js',
+                'https://code.jquery.com/jquery-1.4.js',
+                'https://code.jquery.com/jquery-1.3.js',
+                'https://code.jquery.com/jquery-1.2.js',
+                'https://code.jquery.com/jquery-1.1.js',
+                'https://code.jquery.com/jquery-1.0.js']
+
+        self.__compute_serially(urls)
+        self.__compute_with_threadpool(urls)
+
+    def __compute_serially(self, urls):
+        start_time = datetime.utcnow()
+
+        sizes_by_file = dict()
+        for url in urls:
+            sizes_by_file[url] = self.__get_size_of_file(url)
+        self.Log.info('Total size of all {0} URLs: {1}'.format(len(urls), sum(sizes_by_file.values())))
+
+        time_diff = datetime.utcnow() - start_time
+        self.Log.info("Serial version took: {0}".format(self.get_timespan(time_diff.seconds)))
+
+    def __compute_with_threadpool(self, urls):
+        start_time = datetime.utcnow()
+
+        pool = ThreadPool(processes=8)
+        pool.map(self.__get_size_of_file_in_parallel, urls)
+        self.Log.info('Total size of all {0} URLs: {1}'.format(len(urls), sum(self.__sizes_by_file.values())))
+
+        time_diff = datetime.utcnow() - start_time
+        self.Log.info("Threadpool version took: {0}".format(self.get_timespan(time_diff.seconds)))
+
+    def __get_size_of_file_in_parallel(self, url):
+        self.__sizes_by_file[url] = self.__get_size_of_file(url)
+        # with self.__total_size.get_lock():
+        #    self.__total_size.value += self.__get_size_of_file(url)
+
+    @staticmethod
+    def __get_size_of_file(url):
+        with urllib.request.urlopen(url) as f:
+            contents = f.read()
+        return len(contents)
+
+    @staticmethod
+    def get_timespan(seconds):
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        return "%d:%02d:%02d" % (h, m, s)
+
+
+def setup_logging():
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    logger = logging.StreamHandler()
+    logger.setFormatter(logging.Formatter('%(asctime)s %(levelname)s - [%(thread)d] %(name)s - %(message)s'))
+    root_logger.addHandler(logger)
+
+
+def main():
+    setup_logging()
+
+    log = logging.getLogger()
+
+    try:
+        EntryPoint().main()
+    except Exception as e:
+        log.exception(e)
+
+
+if __name__ == '__main__':
+    main()
