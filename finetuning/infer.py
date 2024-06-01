@@ -1,7 +1,7 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-model_path = 'llama3-8b-lora-chat_1'
+model_path = 'dinhlnd1610/LLAMA3-8B-Coding'
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
@@ -24,7 +24,6 @@ while True:
         continue
   
     conversation.append({"instruction": human, "input": "" })
-    print(tokenizer.apply_chat_template(conversation, add_generation_prompt=True, tokenize= False))
     input_ids = tokenizer.apply_chat_template(conversation, return_tensors="pt", add_generation_prompt=True).to(model.device)
     
     out_ids = model.generate(
